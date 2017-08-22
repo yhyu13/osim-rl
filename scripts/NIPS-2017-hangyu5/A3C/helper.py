@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+import scipy.signal as ss
 
 
 # Helper Function------------------------------------------------------------------------------------------------------------
@@ -14,16 +15,6 @@ def update_target_graph(from_scope,to_scope):
         op_holder.append(to_var.assign(from_var))
     return op_holder
 
-
-def update_target_network(network,target_network,TAU):
-    network_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, network)
-    target_network_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, target_network)
-
-    target_update = []
-    for network_var,target_network_var in zip(network_vars,target_network_vars):
-        target_update.append(target_network_var.assign(tf.add(tf.multiply(TAU,network_var),tf.multiply((1-TAU),target_network_var))))
-    return target_update
-
 # Normalize state 
 def process_frame(s):
     s = (s-np.mean(s)) / np.std(s)
@@ -36,7 +27,9 @@ def normalized_columns_initializer(std=1.0):
         return tf.constant(out)
     return _initializer
 
-    
+def discount(x, gamma):
+    return ss.lfilter([1], [1, -gamma], x[::-1], axis=0)[::-1]
+
 #These functions allows us to update the parameters of our target network with those of the primary network.
 def updateTargetGraph(tfVars,tau):
     total_vars = len(tfVars)

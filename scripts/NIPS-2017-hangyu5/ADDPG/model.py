@@ -25,7 +25,7 @@ GAMMA = 0.99
 
 class Worker:
     """docstring for DDPG"""
-    def __init__(self,sess,number,model_path,global_episodes,explore,decay,training):
+    def __init__(self,sess,number,model_path,global_episodes,explore,training):
         self.name = 'worker_' + str(number) # name for uploading results
 	self.number = number
         # Randomly initialize actor network and critic network
@@ -70,7 +70,7 @@ class Worker:
         action_batch = np.asarray([data[1] for data in minibatch])
         reward_batch = np.asarray([data[2] for data in minibatch])
 	# reward clipping:  scale and clip the values of the rewards to the range -1,+1
-	reward_batch = (reward_batch - np.mean(reward_batch)) / np.max(abs(reward_batch))
+	#reward_batch = (reward_batch - np.mean(reward_batch)) / np.max(abs(reward_batch))
 
         next_state_batch = np.asarray([data[3] for data in minibatch])
         done_batch = np.asarray([data[4] for data in minibatch])
@@ -107,10 +107,10 @@ class Worker:
 	if self.name == 'worker_0':
             saver.save(self.sess, self.model_path + "/model-" + str(episode) + ".ckpt")
 
-    def noise_action(self,state,decay):
+    def noise_action(self,state):
         # Select action a_t according to the current policy and exploration noise which gradually vanishes
         action = self.actor_network.action(self.sess,state)
-        return action+self.exploration_noise.noise()*decay
+        return action+self.exploration_noise.noise()
 
     def action(self,state):
         action = self.actor_network.action(self.sess,state)
@@ -149,10 +149,7 @@ class Worker:
 		episode_reward = 0
 
 		if np.random.rand() < 0.9: # change Aug20 stochastic apply noise
-		    noisy = True
-		    self.decay -= 1./self.explore
-		else:
-		    noisy = False
+		    self.explore -= 1
 
                 
                 self.sess.run(self.update_local_ops_actor)
@@ -168,8 +165,8 @@ class Worker:
 
 		for step in xrange(self.env.spec.timestep_limit):
 		    state = process_frame(state)
-		    if noisy:
-		        action = np.clip(self.noise_action(state,np.maximum(self.decay,0)),0.0,1.0) # change Aug20, decay noise (no noise after ep>=self.explore)
+		    if self.explore>0:
+		        action = np.clip(self.noise_action(state),0.0,1.0) # change Aug20, decay noise (no noise after ep>=self.explore)
 		    else:
 			action = self.action(state)
 	            next_state,reward,done,_ = self.env.step(action)

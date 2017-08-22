@@ -87,10 +87,10 @@ class DDPG:
         ckpt = tf.train.get_checkpoint_state(path)
         self.saver.restore(self.sess,ckpt.model_checkpoint_path)
 
-    def noise_action(self,state,decay):
+    def noise_action(self,state):
         # Select action a_t according to the current policy and exploration noise which gradually vanishes
         action = self.actor_network.action(state)
-        return action+self.exploration_noise.noise()*decay
+        return action+self.exploration_noise.noise()
 
     def action(self,state):
         action = self.actor_network.action(state)

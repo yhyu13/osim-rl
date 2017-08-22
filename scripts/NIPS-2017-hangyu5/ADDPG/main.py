@@ -24,7 +24,6 @@ def main():
         os.makedirs(model_path)
 	
     explore = 2000
-    decay = 1.
         
     tf.reset_default_graph()
         
@@ -37,7 +36,7 @@ def main():
 	    workers = []
 	    # Create worker classes
 	    for i in range(num_workers):
-	        worker = Worker(sess,i,model_path,global_episodes,explore,decay,training)
+	        worker = Worker(sess,i,model_path,global_episodes,explore,training)
 		workers.append(worker)
 		worker.start(setting=0,vis=False)
 	    saver = tf.train.Saver()

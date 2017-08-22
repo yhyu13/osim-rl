@@ -7,7 +7,7 @@ import os
 ENV_NAME = 'learning_to_run'
 MODEL_PATH = './models'
 EPISODES = 100000
-TEST = 5
+TEST = 3
 load_model = True # change Aug20
 
 def process_frame(s):
@@ -27,13 +27,12 @@ def main():
     tf.reset_default_graph() # change Aug19
 
     EXPLORE = 2000 # change Aug19
-    DECAY = 1. # change Aug19
     ep_restart = 0
 
     if load_model:
 	agent.load_model(MODEL_PATH)
-	DECAY -= 190*1./EXPLORE # change Aug20
-	ep_restart = 190
+	EXPLORE -= 51*1
+	ep_restart = 51
 
     for episode in xrange(ep_restart,EPISODES): # change Aug20
         state = env.reset(difficulty = 0)
@@ -41,15 +40,12 @@ def main():
         print "episode:",episode
 
 	if np.random.rand() < 0.9: # change Aug20 stochastic apply noise
-	    noisy = True
-	    DECAY -= 1./EXPLORE
-	else:
-	    noisy = False
+	    EXPLORE -= 1
 
         for step in xrange(env.spec.timestep_limit):
 	    state = process_frame(state)
-	    if noisy:
-                action = np.clip(agent.noise_action(state,np.maximum(DECAY,0.0)),0.0,1.0) # change Aug19
+	    if EXPLORE>0:
+                action = np.clip(agent.noise_action(state),0.0,1.0) # change Aug19
 	    else:
 		action = agent.action(state)
             next_state,reward,done,_ = env.step(action)
