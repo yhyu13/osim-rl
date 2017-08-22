@@ -17,18 +17,14 @@ def main():
 	num_workers = int(sys.argv[1])
 
     load_model = False
-    training = not load_model
+    training = True
     model_path = './models'
 
     if not os.path.exists(model_path):
         os.makedirs(model_path)
 	
-    explore = 1000
+    explore = 2000
     decay = 1.
-
-    if load_model:
-	agent.load_model(model_path)
-	decay -= 45*1./EXPLORE # change Aug20
         
     tf.reset_default_graph()
         
@@ -43,14 +39,17 @@ def main():
 	    for i in range(num_workers):
 	        worker = Worker(sess,i,model_path,global_episodes,explore,decay,training)
 		workers.append(worker)
-		worker.start(setting=0)
-	    saver = tf.train.Saver(max_to_keep=5)
+		worker.start(setting=0,vis=False)
+	    saver = tf.train.Saver()
 
         coord = tf.train.Coordinator()
         if load_model == True:
             print ('Loading Model...')
-            ckpt = tf.train.get_checkpoint_state(model_path)
-            saver.restore(sess,ckpt.model_checkpoint_path)
+	    try:
+                ckpt = tf.train.get_checkpoint_state(model_path)
+            	saver.restore(sess,ckpt.model_checkpoint_path)
+	    except:
+		print('No Model found...Keep training')
         else:
             sess.run(tf.global_variables_initializer())
             

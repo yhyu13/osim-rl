@@ -19,6 +19,13 @@ def process_frame(s):
     s = (s-np.mean(s)) / np.std(s)
     return s
 
+def normalized_columns_initializer(std=1.0):
+    def _initializer(shape, dtype=None, partition_info=None):
+        out = np.random.randn(*shape).astype(np.float32)
+        out *= std / np.sqrt(np.square(out).sum(axis=0, keepdims=True))
+        return tf.constant(out)
+    return _initializer
+
     
 #These functions allows us to update the parameters of our target network with those of the primary network.
 def updateTargetGraph(tfVars,tau):

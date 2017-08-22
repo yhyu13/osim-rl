@@ -2,6 +2,7 @@ import tensorflow as tf
 import tensorflow.contrib.slim as slim
 import numpy as np
 import math
+from helper import *
 
 
 LAYER1_SIZE = 400
@@ -34,6 +35,7 @@ class CriticNetwork:
 	    local_vars_critic = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
             self.optimizer = tf.train.AdamOptimizer(LEARNING_RATE)
 	    self.parameters_gradients,_ = zip(*self.optimizer.compute_gradients(self.cost,local_vars_critic))
+	    self.parameters_graidents,_ = tf.clip_by_global_norm(self.parameters_gradients,5.0)
 	    self.optimizer = self.optimizer.apply_gradients(zip(self.parameters_gradients,global_vars_critic))
             self.action_gradients = tf.gradients(self.q_value_output,self.action_input)
 	    
@@ -43,39 +45,31 @@ class CriticNetwork:
 
     def create_q_network(self,state_dim,action_dim,scope):
 	with tf.variable_scope(scope):
-        # the layer size could be changed
-            layer1_size = LAYER1_SIZE
-            layer2_size = LAYER2_SIZE
 
             state_input = tf.placeholder("float",[None,state_dim])
             action_input = tf.placeholder("float",[None,action_dim])
+	    state_input2 = tf.reshape(state_input,shape=[-1,state_dim,1])
+	    action_input2 = tf.reshape(action_input,shape=[-1,action_dim,1])
 
-            W1 = self.variable([state_dim,layer1_size],state_dim)
-            b1 = self.variable([layer1_size],state_dim)
-            W2 = self.variable([layer1_size,layer2_size],layer1_size+action_dim)
-            W2_action = self.variable([action_dim,layer2_size],layer1_size+action_dim)
-            b2 = self.variable([layer2_size],layer1_size+action_dim)
-            W3 = tf.Variable(tf.random_uniform([layer2_size,1],-3e-3,3e-3))
-            b3 = tf.Variable(tf.random_uniform([1],-3e-3,3e-3))
+	    conv1 = tf.nn.elu(tf.nn.conv1d(state_input2,tf.truncated_normal([3,1,1],stddev=0.156),1,padding='VALID'))
+	    conv2 = tf.nn.elu(tf.nn.conv1d(state_input2,tf.truncated_normal([5,1,1],stddev=0.156),1,padding='VALID'))
+	    conv3 = tf.nn.elu(tf.nn.conv1d(state_input2,tf.truncated_normal([1,1,1],stddev=0.156),1,padding='VALID'))
+	    conv4 = tf.nn.elu(tf.nn.conv1d(action_input2,tf.truncated_normal([3,1,1],stddev=0.236),1,padding='VALID'))
+	    conv5 = tf.nn.elu(tf.nn.conv1d(action_input2,tf.truncated_normal([5,1,1],stddev=0.236),1,padding='VALID'))
+	    conv6 = tf.nn.elu(tf.nn.conv1d(action_input2,tf.truncated_normal([1,1,1],stddev=0.236),1,padding='VALID'))
+	    layer1 = slim.fully_connected(slim.flatten(tf.concat([conv1,conv2,conv3],axis=1)),300,activation_fn=tf.nn.elu,weights_initializer=tf.truncated_normal_initializer(stddev=0.05))
+	    layer2 = slim.fully_connected(slim.flatten(tf.concat([conv4,conv5,conv6],axis=1)),200,activation_fn=tf.nn.elu,weights_initializer=tf.truncated_normal_initializer(stddev=0.05))
+            q_value_output = slim.fully_connected(slim.flatten(tf.concat([layer1,layer2],axis=1)),1,activation_fn=None,weights_initializer=tf.truncated_normal_initializer(stddev=0.05))
+	    net = [v for v in tf.trainable_variables() if scope in v.name]
 
-            layer1 = tf.nn.relu(tf.matmul(state_input,W1) + b1)
-            layer2 = tf.nn.relu(tf.matmul(layer1,W2) + tf.matmul(action_input,W2_action) + b2)
-            q_value_output = tf.identity(tf.matmul(layer2,W3) + b3)
-
-            return state_input,action_input,q_value_output,[W1,b1,W2,W2_action,b2,W3,b3]
+            return state_input,action_input,q_value_output,net
 
     def create_target_q_network(self,state_dim,action_dim,net,scope):
-        state_input = tf.placeholder("float",[None,state_dim])
-        action_input = tf.placeholder("float",[None,action_dim])
-
-        ema = tf.train.ExponentialMovingAverage(decay=1-TAU)
-        target_update = ema.apply(net)
-        target_net = [ema.average(x) for x in net]
-
-        layer1 = tf.nn.relu(tf.matmul(state_input,target_net[0]) + target_net[1])
-        layer2 = tf.nn.relu(tf.matmul(layer1,target_net[2]) + tf.matmul(action_input,target_net[3]) + target_net[4])
-        q_value_output = tf.identity(tf.matmul(layer2,target_net[5]) + target_net[6])
-
+        state_input,action_input,q_value_output,target_net = self.create_q_network(state_dim,action_dim,scope+'/target') 
+        target_update = []
+        for i in range(len(target_net)):
+            # theta' <-- tau*theta + (1-tau)*theta'
+            target_update.append(target_net[i].assign(tf.add(tf.multiply(TAU,net[i]),tf.multiply((1-TAU),target_net[i]))))
         return state_input,action_input,q_value_output,target_update
 
     def update_target(self,sess):

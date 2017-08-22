@@ -1,7 +1,7 @@
 # -----------------------------------
 # Deep Deterministic Policy Gradient
-# Author: Kaizhao Liang
-# Date: 08.11.2017
+# Author: Kaizhao Liang, Hang Yu
+# Date: 08.21.2017
 # -----------------------------------
 import tensorflow as tf
 import numpy as np
@@ -17,8 +17,8 @@ from osim.env import *
 
 # Hyper Parameters:
 
-REPLAY_BUFFER_SIZE = 1000000
-REPLAY_START_SIZE = 10000
+REPLAY_BUFFER_SIZE = 20000
+REPLAY_START_SIZE = 600
 BATCH_SIZE = 32
 GAMMA = 0.99
 
@@ -55,8 +55,11 @@ class Worker:
 	self.update_local_ops_actor = update_target_graph('global/actor',self.name+'/actor')
 	self.update_local_ops_critic = update_target_graph('global/critic',self.name+'/critic')
 
-    def start(self,setting=0):
-	self.env = RunEnv(visualize=True)
+    def start(self,setting=0,vis=False):
+	if self.name == 'worker_1':
+	    self.env = RunEnv(visualize=True)
+	else:
+	    self.env = RunEnv(visualize=vis)
 	self.setting=setting
 
     def train(self):
@@ -66,6 +69,9 @@ class Worker:
         state_batch = np.asarray([data[0] for data in minibatch])
         action_batch = np.asarray([data[1] for data in minibatch])
         reward_batch = np.asarray([data[2] for data in minibatch])
+	# reward clipping:  scale and clip the values of the rewards to the range -1,+1
+	reward_batch = (reward_batch - np.mean(reward_batch)) / np.max(abs(reward_batch))
+
         next_state_batch = np.asarray([data[3] for data in minibatch])
         done_batch = np.asarray([data[4] for data in minibatch])
 
@@ -84,10 +90,10 @@ class Worker:
                 y_batch.append(reward_batch[i] + GAMMA * q_value_batch[i])
         y_batch = np.resize(y_batch,[BATCH_SIZE,1])
         # Update critic by minimizing the loss L
-        self.critic_network.train(y_batch,state_batch,action_batch)
+        self.critic_network.train(self.sess,y_batch,state_batch,action_batch)
 
         # Update the actor policy using the sampled gradient:
-        action_batch_for_gradients = self.actor_network.actions(self.sess,selfstate_batch)
+        action_batch_for_gradients = self.actor_network.actions(self.sess,state_batch)
         q_gradient_batch = self.critic_network.gradients(self.sess,state_batch,action_batch_for_gradients)
 
         self.actor_network.train(self.sess,q_gradient_batch,state_batch)
@@ -156,7 +162,8 @@ class Worker:
 		#print(observation)
 		s = process_frame(state)
 		    
-		print "episode:",episode_count
+		if self.name == 'worker_0':
+		    print "episode:",episode_count
 		# Train
 
 		for step in xrange(self.env.spec.timestep_limit):
@@ -168,24 +175,23 @@ class Worker:
 	            next_state,reward,done,_ = self.env.step(action)
 	            #print('state={}, action={}, reward={}, next_state={}, done={}'.format(state, action, reward, next_state, done))
 	            next_state = process_frame(next_state)
-	            self.perceive(state,action,reward*100,next_state,done)
+	            self.perceive(state,action[0],reward,next_state,done)
 	            state = next_state
 	            episode_reward += reward
 	            if done:
 	        	break
 
-		if episode % 5 == 0:
-	    	    print "episode reward:",reward_episode
+		if self.name == 'worker_0' and episode_count % 5 == 0:
+	    	    print "episode reward:",episode_reward
 		
 
 		# Testing:
-	        #if episode % 1 == 0:
 	        if self.name == 'worker_0' and episode_count % 50 == 0 and episode_count > 1: # change Aug19
 	            self.save_model(saver, episode_count)
 	       	    total_return = 0
 		    ave_reward = 0
-	            for i in xrange(TEST):
-	                state = self.env.reset()
+	            for i in xrange(3):
+	                state = self.env.reset(difficulty = self.setting+1)
 	       	        reward_per_step = 0
 		        for j in xrange(self.env.spec.timestep_limit):
 		            action = self.action(process_frame(state)) # direct action for test
@@ -196,15 +202,15 @@ class Worker:
 			    reward_per_step += (reward - reward_per_step)/(j+1)
 			ave_reward += reward_per_step
 
-		    ave_return = total_return/TEST
-	            ave_reward = ave_reward/TEST
+		    ave_return = total_return/3
+	            ave_reward = ave_reward/3
 		    returns.append(ave_return)
 	            rewards.append(ave_reward)
 
-		    print 'episode: ',episode,'Evaluation Average Return:',ave_return, '  Evaluation Average Reward: ', ave_reward
+		    print 'episode: ',episode_count,'Evaluation Average Return:',ave_return, '  Evaluation Average Reward: ', ave_reward
 
 		if self.name == 'worker_0' and self.training:
-                    sess.run(self.increment)
+                    self.sess.run(self.increment)
 		episode_count += 1
 
 	    # All done Stop trail
