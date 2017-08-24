@@ -154,8 +154,8 @@ class AC_Network():
             self.imageIn = tf.reshape(self.inputs,shape=[-1,s_size*2,1])
             
 	        # Create the model, use the default arg scope to configure the batch norm parameters.
-            conv1 = tf.nn.elu(tf.nn.conv1d(self.imageIn,tf.truncated_normal([2,1,32],stddev=0.1),2,padding='VALID'))
-            conv2 = tf.nn.elu(tf.nn.conv1d(conv1,tf.truncated_normal([3,32,64],stddev=0.1),1,padding='VALID'))
+            conv1 = tf.nn.elu(tf.nn.conv1d(self.imageIn,tf.truncated_normal([2,1,8],stddev=0.1),2,padding='VALID'))
+            conv2 = tf.nn.elu(tf.nn.conv1d(conv1,tf.truncated_normal([3,8,16],stddev=0.05),1,padding='VALID'))
 	        
             hidden = slim.fully_connected(slim.flatten(conv2),200,activation_fn=tf.nn.elu)
             
@@ -186,9 +186,9 @@ class AC_Network():
                 self.value = noisy_dense(rnn_out,name=scope, size=1) # default activation_fn=tf.identity
             else:
                 #Output layers for policy and value estimations
-                mu = slim.fully_connected(rnn_out,a_size,activation_fn=tf.sigmoid,weights_initializer=normalized_columns_initializer(0.01),biases_initializer=None)
+                mu = slim.fully_connected(rnn_out,a_size,activation_fn=tf.nn.elu,weights_initializer=normalized_columns_initializer(0.01),biases_initializer=None)
                 #var = slim.fully_connected(rnn_out,a_size,activation_fn=tf.nn.softplus,weights_initializer=normalized_columns_initializer(0.01),biases_initializer=None)
-                self.normal_dist = tf.distributions.Normal(mu, 0.05)
+                self.normal_dist = tf.contrib.distributions.Normal(mu, 0.05)
                 self.policy = tf.clip_by_value(self.normal_dist.sample(1),0.0,1.0) # self.normal_dist.sample(1)
                 self.value = slim.fully_connected(rnn_out,1,
                     activation_fn=None,
@@ -311,7 +311,7 @@ class Worker():
                     if self.env != None:
                         del self.env
                     if self.name == 'worker_1':
-                        self.env = ei(vis=True)#RunEnv(visualize=True)
+                        self.env = ei(vis=False)#RunEnv(visualize=True)
                     else:
                         self.env = ei(vis=False)#RunEnv(visualize=False)
                 self.setting=0
@@ -327,13 +327,15 @@ class Worker():
                 s=self.env.reset()
                 # engineered initial input to make agent's life easier
                 a=engineered_action()
-                s = process_frame(s)
-                ob,r,done,_ = self.env.step(a)
-                s1 = process_frame(ob)
+		#print(s)
+                s = process_frame(s[:-3])
+		#print(s)
+                ob = self.env.step(a)[0]
+		#print(ob)
+                s1 = process_frame(ob[:-3])
                 s = concat(s,s1)
                 rnn_state = self.local_AC.state_init
-                if np.random.rand() < 0.9:
-                    explore -= 1
+                explore -= 1
                 #st = time()
                 chese=0
                 while done == False:
@@ -347,7 +349,7 @@ class Worker():
 	                        a = np.clip(action[0,0]+self.exploration_noise.noise(),0.0,1.0)
                         else:
                             a = action[0,0]
-                        if chese < 70 and episode_count < 250:
+                        if chese < 60 and episode_count < 250:
                             a=engineered_action()
                             chese += 1
                     else:
@@ -355,12 +357,12 @@ class Worker():
                     ob,r,done,_ = self.env.step(a)
                     '''
                     if self.name == 'worker_0':
-                    ct = time()
-                    print(ct-st)
-                    st = ct
+                        ct = time()
+                        print(ct-st)
+                        st = ct
                     '''
                     if done == False:
-                        s2 = ob
+                        s2 = process_frame(ob[:-3])
                     else:
                         s2 = s1
                     s1 = concat(s1,s2)
@@ -419,11 +421,12 @@ class Worker():
                         summary.value.add(tag='Losses/Entropy', simple_value=float(e_l))
                     self.summary_writer.add_summary(summary, episode_count)
                     self.summary_writer.flush()
-                    if self.name == 'worker_0' and self.is_training:
-                        print("Episode "+str(episode_count)+" score: %.2f" % episode_reward)
-                        print("Episodes so far mean reward: %.2f" % mean_reward)
+                    if self.name == 'worker_1' and self.is_training:
+                        print("Episode "+str(episode_count)+" score (testing): %.2f" % episode_reward)
+                    if self.name == 'worker_0':
+			print("Episodes so far mean reward (training): %.2f" % mean_reward)
 
-                        if episode_count % 50 == 0:
+                        if episode_count % 100 == 0:
                             saver.save(sess,self.model_path+'/model-'+str(episode_count)+'.cptk')
                             print ("Saved Model")
                             #sleep(5)

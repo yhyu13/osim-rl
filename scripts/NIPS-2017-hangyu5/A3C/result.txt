@@ -1,122 +1,87 @@
+ num_workers = 16
+ noisy_net_enabled = False
+Starting worker 0
+Starting worker 1
+Starting worker 1
 Updating Model file from 30000 to latest format...
-Loaded model gait9dof18musc_Thelen_BigSpheres.osim from file /home/hangyu5/anaconda2/envs/opensim-rl/lib/python2.7/site-packages/osim/env/../models/gait9dof18musc.osim
+Starting worker 2
 Updating Model file from 30000 to latest format...
-Loaded model gait9dof18musc_Thelen_BigSpheres.osim from file /home/hangyu5/anaconda2/envs/opensim-rl/lib/python2.7/site-packages/osim/env/../models/gait9dof18musc.osim
+Loaded model gait9dof18musc_Thelen_BigSpheres.osim from file /home/ubuntu/anaconda2/envs/opensim-rl/lib/python2.7/site-packages/osim/env/../models/gait9dof18musc.osim
+Starting worker 4
+Starting worker 4
 Updating Model file from 30000 to latest format...
-Loaded model gait9dof18musc_Thelen_BigSpheres.osim from file /home/hangyu5/anaconda2/envs/opensim-rl/lib/python2.7/site-packages/osim/env/../models/gait9dof18musc.osim
+Loaded model gait9dof18musc_Thelen_BigSpheres.osim from file /home/ubuntu/anaconda2/envs/opensim-rl/lib/python2.7/site-packages/osim/env/../models/gait9dof18musc.osim
+Starting worker 5
 Updating Model file from 30000 to latest format...
-Loaded model gait9dof18musc_Thelen_BigSpheres.osim from file /home/hangyu5/anaconda2/envs/opensim-rl/lib/python2.7/site-packages/osim/env/../models/gait9dof18musc.osim
-Starting worker_0
-Starting worker_1
-Starting worker_2
-Starting worker_3
-episode: 0
-episode reward: -0.801008988287
-episode: 1
-episode: 2
-episode: 3
-episode: 4
-episode: 5
-episode reward: -0.784604846033
-episode: 6
-episode: 7
-episode: 8
-episode: 9
-episode: 10
-episode reward: -0.791957342817
-episode: 11
-episode: 12
-episode: 13
-episode: 14
-episode: 15
-episode reward: -0.798405607253
-episode: 16
-episode: 17
-episode: 18
-episode: 19
-episode: 20
-episode reward: -0.787193268303
-episode: 21
-episode: 22
-episode: 23
-episode: 24
-episode: 25
-episode reward: -0.805352961962
-episode: 26
-episode: 27
-episode: 28
-episode: 29
-episode: 30
-episode reward: 0.65922295639
-episode: 31
-episode: 32
-episode: 33
-episode: 34
-episode: 35
-episode reward: -0.780611855671
-episode: 36
-episode: 37
-episode: 38
-episode: 39
-episode: 40
-episode reward: 0.634751339584
-episode: 41
-episode: 42
-episode: 43
-episode: 44
-episode: 45
-episode reward: -0.774092570294
-episode: 46
-episode: 47
-episode: 48
-episode: 49
-episode: 50
-episode reward: -0.797595091356
+Loaded model gait9dof18musc_Thelen_BigSpheres.osim from file /home/ubuntu/anaconda2/envs/opensim-rl/lib/python2.7/site-packages/osim/env/../models/gait9dof18musc.osim
+Starting worker 7
+Starting worker 7Updating Model file from 30000 to latest format...
+Loaded model gait9dof18musc_Thelen_BigSpheres.osim from file /home/ubuntu/anaconda2/envs/opensim-rl/lib/python2.7/site-packages/osim/env/../models/gait9dof18musc.osim
 Updating Model file from 30000 to latest format...
-Loaded model gait9dof18musc_Thelen_BigSpheres.osim from file /home/hangyu5/anaconda2/envs/opensim-rl/lib/python2.7/site-packages/osim/env/../models/gait9dof18musc.osim
+Loaded model gait9dof18musc_Thelen_BigSpheres.osim from file /home/ubuntu/anaconda2/envs/opensim-rl/lib/python2.7/site-packages/osim/env/../models/gait9dof18musc.osim
+
 Updating Model file from 30000 to latest format...
-Loaded model gait9dof18musc_Thelen_BigSpheres.osim from file /home/hangyu5/anaconda2/envs/opensim-rl/lib/python2.7/site-packages/osim/env/../models/gait9dof18musc.osim
+Loaded model gait9dof18musc_Thelen_BigSpheres.osim from file /home/ubuntu/anaconda2/envs/opensim-rl/lib/python2.7/site-packages/osim/env/../models/gait9dof18musc.osim
+Starting worker 9
+Loaded model gait9dof18musc_Thelen_BigSpheres.osim from file /home/ubuntu/anaconda2/envs/opensim-rl/lib/python2.7/site-packages/osim/env/../models/gait9dof18musc.osim
+Starting worker 9
 Updating Model file from 30000 to latest format...
-Loaded model gait9dof18musc_Thelen_BigSpheres.osim from file /home/hangyu5/anaconda2/envs/opensim-rl/lib/python2.7/site-packages/osim/env/../models/gait9dof18musc.osim
+Starting worker 9
 Updating Model file from 30000 to latest format...
-Loaded model gait9dof18musc_Thelen_BigSpheres.osim from file /home/hangyu5/anaconda2/envs/opensim-rl/lib/python2.7/site-packages/osim/env/../models/gait9dof18musc.osim
-Loading Model...
-Starting worker_0
-Starting worker_1
-Starting worker_2
-Starting worker_3
-episode: 50
-episode reward: -0.717983827087
-episode: 51
-episode: 52
-episode: 53
-episode: 54
-episode: 55
-episode reward: -0.797352104412
-episode: 56
-episode: 57
-episode: 58
-episode: 59
-episode: 60
-episode reward: -0.75055282672
-episode: 61
-episode: 62
-episode: 63
-episode: 64
-episode: 65
-episode reward: 0.27343960689
-episode: 66
-episode: 67
-episode: 68
-episode: 69
-episode: 70
-episode reward: -0.819118955381
-episode: 71
-episode: 72
-episode: 73
-episode: 74
-episode: 75
-episode reward: -0.794566354527
-episode: 76
-episode: 77
-episode: 78
+Loaded model gait9dof18musc_Thelen_BigSpheres.osim from file /home/ubuntu/anaconda2/envs/opensim-rl/lib/python2.7/site-packages/osim/env/../models/gait9dof18musc.osim
+Starting worker 11
+ Starting worker 11
+Starting worker 12
+Starting worker 13
+Updating Model file from 30000 to latest format...
+Loaded model gait9dof18musc_Thelen_BigSpheres.osim from file /home/ubuntu/anaconda2/envs/opensim-rl/lib/python2.7/site-packages/osim/env/../models/gait9dof18musc.osim
+Loaded model gait9dof18musc_Thelen_BigSpheres.osim from file /home/ubuntu/anaconda2/envs/opensim-rl/lib/python2.7/site-packages/osim/env/../models/gait9dof18musc.osim
+Starting worker 14
+Updating Model file from 30000 to latest format...
+Updating Model file from 30000 to latest format...
+Loaded model gait9dof18musc_Thelen_BigSpheres.osim from file /home/ubuntu/anaconda2/envs/opensim-rl/lib/python2.7/site-packages/osim/env/../models/gait9dof18musc.osim
+Updating Model file from 30000 to latest format...
+Loaded model gait9dof18musc_Thelen_BigSpheres.osim from file /home/ubuntu/anaconda2/envs/opensim-rl/lib/python2.7/site-packages/osim/env/../models/gait9dof18musc.osim
+Starting worker 15
+Loaded model gait9dof18musc_Thelen_BigSpheres.osim from file /home/ubuntu/anaconda2/envs/opensim-rl/lib/python2.7/site-packages/osim/env/../models/gait9dof18musc.osim
+Starting worker 15
+Updating Model file from 30000 to latest format...
+Updating Model file from 30000 to latest format...
+Loaded model gait9dof18musc_Thelen_BigSpheres.osim from file /home/ubuntu/anaconda2/envs/opensim-rl/lib/python2.7/site-packages/osim/env/../models/gait9dof18musc.osim
+Updating Model file from 30000 to latest format...
+Loaded model gait9dof18musc_Thelen_BigSpheres.osim from file /home/ubuntu/anaconda2/envs/opensim-rl/lib/python2.7/site-packages/osim/env/../models/gait9dof18musc.osim
+Updating Model file from 30000 to latest format...
+Loaded model gait9dof18musc_Thelen_BigSpheres.osim from file /home/ubuntu/anaconda2/envs/opensim-rl/lib/python2.7/site-packages/osim/env/../models/gait9dof18musc.osim
+Updating Model file from 30000 to latest format...
+Loaded model gait9dof18musc_Thelen_BigSpheres.osim from file /home/ubuntu/anaconda2/envs/opensim-rl/lib/python2.7/site-packages/osim/env/../models/gait9dof18musc.osim
+Updating Model file from 30000 to latest format...
+Loaded model gait9dof18musc_Thelen_BigSpheres.osim from file /home/ubuntu/anaconda2/envs/opensim-rl/lib/python2.7/site-packages/osim/env/../models/gait9dof18musc.osim
+Loaded model gait9dof18musc_Thelen_BigSpheres.osim from file /home/ubuntu/anaconda2/envs/opensim-rl/lib/python2.7/site-packages/osim/env/../models/gait9dof18musc.osim
+Updating Model file from 30000 to latest format...
+Updating Model file from 30000 to latest format...
+Loaded model gait9dof18musc_Thelen_BigSpheres.osim from file /home/ubuntu/anaconda2/envs/opensim-rl/lib/python2.7/site-packages/osim/env/../models/gait9dof18musc.osim
+Updating Model file from 30000 to latest format...
+Loaded model gait9dof18musc_Thelen_BigSpheres.osim from file /home/ubuntu/anaconda2/envs/opensim-rl/lib/python2.7/site-packages/osim/env/../models/gait9dof18musc.osim
+Updating Model file from 30000 to latest format...
+Updating Model file from 30000 to latest format...
+Loaded model gait9dof18musc_Thelen_BigSpheres.osim from file /home/ubuntu/anaconda2/envs/opensim-rl/lib/python2.7/site-packages/osim/env/../models/gait9dof18musc.osim
+Loaded model gait9dof18musc_Thelen_BigSpheres.osim from file /home/ubuntu/anaconda2/envs/opensim-rl/lib/python2.7/site-packages/osim/env/../models/gait9dof18musc.osim
+Loaded model gait9dof18musc_Thelen_BigSpheres.osim from file /home/ubuntu/anaconda2/envs/opensim-rl/lib/python2.7/site-packages/osim/env/../models/gait9dof18musc.osim
+Updating Model file from 30000 to latest format...
+Updating Model file from 30000 to latest format...
+Loaded model gait9dof18musc_Thelen_BigSpheres.osim from file /home/ubuntu/anaconda2/envs/opensim-rl/lib/python2.7/site-packages/osim/env/../models/gait9dof18musc.osim
+Loaded model gait9dof18musc_Thelen_BigSpheres.osim from file /home/ubuntu/anaconda2/envs/opensim-rl/lib/python2.7/site-packages/osim/env/../models/gait9dof18musc.osim
+Updating Model file from 30000 to latest format...
+Updating Model file from 30000 to latest format...
+Loaded model gait9dof18musc_Thelen_BigSpheres.osim from file /home/ubuntu/anaconda2/envs/opensim-rl/lib/python2.7/site-packages/osim/env/../models/gait9dof18musc.osim
+Updating Model file from 30000 to latest format...
+Loaded model gait9dof18musc_Thelen_BigSpheres.osim from file /home/ubuntu/anaconda2/envs/opensim-rl/lib/python2.7/site-packages/osim/env/../models/gait9dof18musc.osim
+Loaded model gait9dof18musc_Thelen_BigSpheres.osim from file /home/ubuntu/anaconda2/envs/opensim-rl/lib/python2.7/site-packages/osim/env/../models/gait9dof18musc.osim
+Updating Model file from 30000 to latest format...
+Loaded model gait9dof18musc_Thelen_BigSpheres.osim from file /home/ubuntu/anaconda2/envs/opensim-rl/lib/python2.7/site-packages/osim/env/../models/gait9dof18musc.osim
+Updating Model file from 30000 to latest format...
+Updating Model file from 30000 to latest format...
+Loaded model gait9dof18musc_Thelen_BigSpheres.osim from file /home/ubuntu/anaconda2/envs/opensim-rl/lib/python2.7/site-packages/osim/env/../models/gait9dof18musc.osim
+Loaded model gait9dof18musc_Thelen_BigSpheres.osim from file /home/ubuntu/anaconda2/envs/opensim-rl/lib/python2.7/site-packages/osim/env/../models/gait9dof18musc.osim
+Episodes so far mean reward (training): 0.04
+Ctrl-c received! Sending kill to threads...

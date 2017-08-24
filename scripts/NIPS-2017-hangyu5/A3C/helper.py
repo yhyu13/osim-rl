@@ -17,6 +17,7 @@ def update_target_graph(from_scope,to_scope):
 
 # Normalize state 
 def process_frame(s):
+    s = np.asarray(s)
     s = (s-np.mean(s)) / np.std(s)
     return s
     
@@ -34,7 +35,7 @@ def engineered_action():
     return a
     
 def concat(s,s1):
-    concat = np.zeros(41*2)
+    concat = np.zeros(s.shape[0]*2)
     for i in range(len(concat)):
         if i % 2 == 0:
             concat[i] = s[i/2]
