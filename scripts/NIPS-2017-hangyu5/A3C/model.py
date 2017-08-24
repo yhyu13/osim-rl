@@ -15,6 +15,7 @@ from helper import *
 
 from time import sleep
 from time import time
+from time import gmtime, strftime
 import multiprocessing
 from multiprocessing import Process, Pipe
 from osim.env import *
@@ -37,7 +38,7 @@ def standalone_headless_isolated(conn,vis):
             # msg[0] should be string
 
             if msg[0] == 'reset':
-                o = e.reset(difficulty=0)
+                o = e.reset(difficulty=2)
                 conn.send(o)
             elif msg[0] == 'step':
                 ordi = e.step(msg[1])
@@ -324,15 +325,13 @@ class Worker():
                 episode_step_count = 0
                 done = False
                 
-                s=self.env.reset()
+                self.env.reset()
                 # engineered initial input to make agent's life easier
                 a=engineered_action()
-		#print(s)
-                s = process_frame(s[:-3])
-		#print(s)
                 ob = self.env.step(a)[0]
-		#print(ob)
-                s1 = process_frame(ob[:-3])
+                s = process_frame(ob)
+		ob = self.env.step(a)[0]
+		s1 = process_frame(ob)
                 s = concat(s,s1)
                 rnn_state = self.local_AC.state_init
                 explore -= 1
@@ -362,7 +361,7 @@ class Worker():
                         st = ct
                     '''
                     if done == False:
-                        s2 = process_frame(ob[:-3])
+                        s2 = process_frame(ob)
                     else:
                         s2 = s1
                     s1 = concat(s1,s2)
@@ -421,24 +420,32 @@ class Worker():
                         summary.value.add(tag='Losses/Entropy', simple_value=float(e_l))
                     self.summary_writer.add_summary(summary, episode_count)
                     self.summary_writer.flush()
-                    if self.name == 'worker_1' and self.is_training:
-                        print("Episode "+str(episode_count)+" score (testing): %.2f" % episode_reward)
+                    if self.name == 'worker_1':
+			with open('result.txt','w') as f:
+                            f.write("Episode "+str(episode_count)+" reward (testing): %.2f\n" % episode_reward)
                     if self.name == 'worker_0':
-			print("Episodes so far mean reward (training): %.2f" % mean_reward)
+			with open('result.txt','w') as f:
+			    f.write("Episodes "+str(episode_count)+" mean reward (training): %.2f\n" % mean_reward)
 
                         if episode_count % 100 == 0:
                             saver.save(sess,self.model_path+'/model-'+str(episode_count)+'.cptk')
-                            print ("Saved Model")
+                            with open('result.txt','w') as f:
+			        f.write("Saved Model at episode: "+str(episode_count)+"\n")
+				try:
+				    f.write(strftime("Time(gm): %a, %d %b %Y %H:%M:%S\n", gmtime()))
+				except:
+				    pass
                             #sleep(5)
                 if self.name == 'worker_0' and self.is_training:
                     sess.run(self.increment)
                         
                 episode_count += 1
                     
-                if self.name == "worker_0" and episode_reward > 10. and not self.is_training:
+                if self.name == "worker_1" and episode_reward > 2.:
                     wining_episode_count += 1
-                    print('Worker_0 is stepping forward in Episode {}! Total percentage of finding the platform is: {}%'.format(episode_count, int(wining_episode_count / episode_count * 100)))
-                    
+                    print('Worker_1 is stepping forward in Episode {}! Reward: {:.2f}. Total percentage of success is: {}%'.format(episode_count, episode_reward, int(wining_episode_count / episode_count * 100)))
+                    with open('result.txt','w') as f:
+			f.wirte('Worker_1 is stepping forward in Episode {}! Reward: {:.2f}. Total percentage of success is: {}%\n'.format(episode_count, episode_reward, int(wining_episode_count / episode_count * 100)))
         
         # All done Stop trail
         # Confirm exit

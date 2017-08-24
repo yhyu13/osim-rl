@@ -15,7 +15,7 @@ def main():
         noisy = str2bool(sys.argv[2])
     max_episode_length = 1000
     gamma = .995 # discount rate for advantage estimation and reward discounting
-    s_size = 38
+    s_size = 41
     a_size = 18 # Agent can move Left, Right, or Straight
     model_path = './models'
     load_model = False
@@ -37,7 +37,7 @@ def main():
         workers = []
             # Create worker classes
         for i in range(num_workers):
-            worker = Worker(i,s_size,a_size,trainer,model_path,global_episodes,noisy,is_training= False)
+            worker = Worker(i,s_size,a_size,trainer,model_path,global_episodes,noisy,is_training= True)
             workers.append(worker)
 
         saver = tf.train.Saver()
