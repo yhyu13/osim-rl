@@ -15,7 +15,7 @@ def process_frame(s):
     return s
 
 def main():
-    env = RunEnv(visualize=True)
+    env = RunEnv(visualize=False)
     env.reset(difficulty = 0)
     agent = DDPG(env)
 
@@ -31,8 +31,8 @@ def main():
 
     if load_model:
 	agent.load_model(MODEL_PATH)
-	EXPLORE -= 51*1
-	ep_restart = 51
+	EXPLORE -= 401*1
+	ep_restart = 401
 
     for episode in xrange(ep_restart,EPISODES): # change Aug20
         state = env.reset(difficulty = 0)
@@ -51,7 +51,7 @@ def main():
             next_state,reward,done,_ = env.step(action)
             #print('state={}, action={}, reward={}, next_state={}, done={}'.format(state, action, reward, next_state, done))
 	    next_state = process_frame(next_state)
-            agent.perceive(state,action,reward*100,next_state,done)
+            agent.perceive(state,action,reward,next_state,done)
             state = next_state
             reward_episode += reward
             if done:
@@ -70,7 +70,7 @@ def main():
             total_return = 0
             ave_reward = 0
             for i in xrange(TEST):
-                state = env.reset()
+                state = env.reset(difficulty=1)
                 reward_per_step = 0
                 for j in xrange(env.spec.timestep_limit):
                     action = agent.action(state) # direct action for test

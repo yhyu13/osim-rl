@@ -12,8 +12,8 @@ from replay_buffer import ReplayBuffer
 
 # Hyper Parameters:
 
-REPLAY_BUFFER_SIZE = 1000000
-REPLAY_START_SIZE = 10000
+REPLAY_BUFFER_SIZE = 5000000
+REPLAY_START_SIZE = 200
 BATCH_SIZE = 32
 GAMMA = 0.99
 

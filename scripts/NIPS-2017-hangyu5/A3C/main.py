@@ -1,6 +1,7 @@
 from model import *
 import sys
 import os
+worker_threads = []
 
 def str2bool(v):
   return v.lower() in ("yes", "true", "t", "1")
@@ -12,22 +13,14 @@ def main():
     else:
         num_workers = int(sys.argv[1])
         noisy = str2bool(sys.argv[2])
-    max_episode_length = 200
-    gamma = .99 # discount rate for advantage estimation and reward discounting
+    max_episode_length = 1000
+    gamma = .995 # discount rate for advantage estimation and reward discounting
     s_size = 41
     a_size = 18 # Agent can move Left, Right, or Straight
     model_path = './models'
     load_model = False
     print(" num_workers = %d" % num_workers)
-    print(" noisy_enabled = %s" % str(noisy))
-    
-    print('''
-    max_episode_length = 200
-    gamma = .99 # discount rate for advantage estimation and reward discounting
-    s_size = 41 
-    a_size = 18
-    model_path = './model'
-    ''')
+    print(" noisy_net_enabled = %s" % str(noisy))
 
     tf.reset_default_graph()
 
@@ -37,16 +30,16 @@ def main():
 
     with tf.device("/cpu:0"): 
         global_episodes = tf.Variable(0,dtype=tf.int32,name='global_episodes',trainable=False)
-        trainer = tf.train.AdamOptimizer(learning_rate=1e-4)
+        trainer = tf.train.AdamOptimizer(learning_rate=1e-3)
         master_network = AC_Network(s_size,a_size,'global',None,noisy) # Generate global network
 	#master_network_target = AC_Network(s_size,a_size,'global/target',None,noisy) # Generate global network
         num_cpu = multiprocessing.cpu_count() # Set workers ot number of available CPU threads
         workers = []
             # Create worker classes
         for i in range(num_workers):
-            worker = Worker(i,s_size,a_size,trainer,model_path,global_episodes,noisy,is_training= not load_model)
+            worker = Worker(i,s_size,a_size,trainer,model_path,global_episodes,noisy,is_training= False)
             workers.append(worker)
-            worker.start(setting=0,vis=False)
+
         saver = tf.train.Saver()
         
     '''networks = ['global'] + ['worker_'+i for i in str(range(num_workers))]
@@ -79,14 +72,20 @@ def main():
             
         # This is where the asynchronous magic happens.
         # Start the "work" process for each worker in a separate thread.
-        worker_threads = []
+        
         for worker in workers:
             worker_work = lambda: worker.work(max_episode_length,gamma,sess,coord,saver)
+	    #worker.start(setting=0,vis=True)
             t = threading.Thread(target=(worker_work))
+            t.daemon = True
             t.start()
-            sleep(0.5)
             worker_threads.append(t)
         coord.join(worker_threads)
         
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("Ctrl-c received! Sending kill to threads...")
+        for t in worker_threads:
+            t.kill_received = True

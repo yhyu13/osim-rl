@@ -19,6 +19,28 @@ def update_target_graph(from_scope,to_scope):
 def process_frame(s):
     s = (s-np.mean(s)) / np.std(s)
     return s
+    
+def engineered_action():
+    a = np.ones(18)*0.05
+    a[17:]=0.9
+    a[0]=0.9
+    a[3]=0.9
+    a[4]=0.9
+    a[8]=0.9
+    a[11]=0.9
+    a[12]=0.9
+    a[13]=0.9
+    a[10]=0.9
+    return a
+    
+def concat(s,s1):
+    concat = np.zeros(41*2)
+    for i in range(len(concat)):
+        if i % 2 == 0:
+            concat[i] = s[i/2]
+        else:
+            concat[i] = s1[(i-1)/2]
+    return concat
 
 def normalized_columns_initializer(std=1.0):
     def _initializer(shape, dtype=None, partition_info=None):
