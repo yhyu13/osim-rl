@@ -176,3 +176,20 @@ Episodes 635 mean reward (training): -0.79
 Episode 600 reward (testing): -0.78
 Episodes 640 mean reward (training): -0.80
 Episode 605 reward (testing): -0.79
+Episode 5 reward (testing): -0.41
+Episodes 5 mean reward (training): -0.49
+Episodes 10 mean reward (training): -0.43
+Episodes 5 mean reward (training): -0.80
+Episode 5 reward (testing): -0.79
+Episodes 10 mean reward (training): -0.81
+Episode 10 reward (testing): -0.81
+Episodes 15 mean reward (training): -0.81
+Episode 15 reward (testing): -0.81
+Episode 20 reward (testing): -0.81
+Episodes 5 mean reward (training): 0.04
+Episode 5 reward (testing): 0.60
+Episode 5 reward (testing): -0.79
+Episode 10 reward (testing): -0.79
+Episodes 5 mean reward (training): 0.79
+Episodes 10 mean reward (training): 0.85
+Episode 15 reward (testing): -0.81

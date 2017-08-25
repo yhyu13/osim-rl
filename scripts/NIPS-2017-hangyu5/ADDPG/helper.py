@@ -26,8 +26,40 @@ def update_target_network(network,target_network,TAU):
 
 # Normalize state 
 def process_frame(s):
+    s = np.asarray(s)
     s = (s-np.mean(s)) / np.std(s)
     return s
+
+# process state (the last 3 entires are obstacle info which should not be processed)
+def process_state(s,s1):
+    s = np.asarray(s)
+    s1 = np.asarray(s1)
+    s = np.hstack((s1[:-3]-s[:-3],s[-3:]))
+    return s
+    
+def engineered_action(seed):
+    a = np.ones(18)*0.05
+    if seed < .5:
+        a[17:]=0.9
+        a[0]=0.9
+        a[3]=0.9
+        a[4]=0.9
+        a[8]=0.9
+        a[11]=0.9
+        a[12]=0.9
+        a[13]=0.9
+        a[10]=0.9
+    else:
+        a[8]=0.9
+        a[9]=0.9
+        a[12]=0.9
+        a[13]=0.9
+        a[17]=0.9
+        a[2]=0.9
+        a[3]=0.9
+        a[4]=0.9
+        a[6]=0.9 
+    return a
 
 def normalized_columns_initializer(std=1.0):
     def _initializer(shape, dtype=None, partition_info=None):

@@ -4,9 +4,6 @@ import sys
 import os
 worker_threads = []
 
-def str2bool(v):
-  return v.lower() in ("yes", "true", "t", "1")
-
 def main():
     
     parser = argparse.ArgumentParser(description='Train or test neural net motor controller')

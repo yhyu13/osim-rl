@@ -315,10 +315,10 @@ class Worker():
                     if self.env != None:
                         del self.env
                     if self.name == 'worker_1':
-                        self.env = ei(vis=False)#RunEnv(visualize=True)
+                        self.env = ei(vis=True)#RunEnv(visualize=True)
                     else:
                         self.env = ei(vis=False)#RunEnv(visualize=False)
-                self.setting=0
+                self.setting=2
                         
                 sess.run(self.update_local_ops)
 		        #sess.run(self.update_local_ops_target)
@@ -333,8 +333,8 @@ class Worker():
                 a=engineered_action()
                 ob = self.env.step(a)[0]
                 s = process_frame(ob)
-		ob = self.env.step(a)[0]
-		s1 = process_frame(ob)
+                ob = self.env.step(a)[0]
+                s1 = process_frame(ob)
                 s = concat(s,s1)
                 rnn_state = self.local_AC.state_init
                 explore -= 1

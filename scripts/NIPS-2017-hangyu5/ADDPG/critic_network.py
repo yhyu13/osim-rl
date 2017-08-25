@@ -5,8 +5,6 @@ import math
 from helper import *
 
 
-LAYER1_SIZE = 400
-LAYER2_SIZE = 300
 LEARNING_RATE = 1e-3
 TAU = 0.001
 L2 = 0.01
@@ -27,40 +25,32 @@ class CriticNetwork:
         self.target_q_value_output,\
         self.target_update = self.create_target_q_network(state_dim,action_dim,self.net,scope)
 
-	if scope != 'global/critic':
+        if scope != 'global/critic':
             self.y_input = tf.placeholder("float",[None,1])
             weight_decay = tf.add_n([L2 * tf.nn.l2_loss(var) for var in self.net])
             self.cost = tf.reduce_mean(tf.square(self.y_input - self.q_value_output)) + weight_decay
-	    global_vars_critic = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'global/critic')
-	    local_vars_critic = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
+            global_vars_critic = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'global/critic')
+            local_vars_critic = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
             self.optimizer = tf.train.AdamOptimizer(LEARNING_RATE)
-	    self.parameters_gradients,_ = zip(*self.optimizer.compute_gradients(self.cost,local_vars_critic))
-	    self.parameters_graidents,_ = tf.clip_by_global_norm(self.parameters_gradients,5.0)
-	    self.optimizer = self.optimizer.apply_gradients(zip(self.parameters_gradients,global_vars_critic))
+            self.parameters_gradients,_ = zip(*self.optimizer.compute_gradients(self.cost,local_vars_critic))
+            self.parameters_graidents,_ = tf.clip_by_global_norm(self.parameters_gradients,5.0)
+            self.optimizer = self.optimizer.apply_gradients(zip(self.parameters_gradients,global_vars_critic))
             self.action_gradients = tf.gradients(self.q_value_output,self.action_input)
-	    
-	sess.run(tf.global_variables_initializer())
+            sess.run(tf.global_variables_initializer())
 
-        #self.update_target()
+            #self.update_target()
 
     def create_q_network(self,state_dim,action_dim,scope):
-	with tf.variable_scope(scope):
+        with tf.variable_scope(scope):
 
             state_input = tf.placeholder("float",[None,state_dim])
             action_input = tf.placeholder("float",[None,action_dim])
-	    state_input2 = tf.reshape(state_input,shape=[-1,state_dim,1])
-	    action_input2 = tf.reshape(action_input,shape=[-1,action_dim,1])
 
-	    conv1 = tf.nn.elu(tf.nn.conv1d(state_input2,tf.truncated_normal([3,1,1],stddev=0.156),1,padding='VALID'))
-	    conv2 = tf.nn.elu(tf.nn.conv1d(state_input2,tf.truncated_normal([5,1,1],stddev=0.156),1,padding='VALID'))
-	    conv3 = tf.nn.elu(tf.nn.conv1d(state_input2,tf.truncated_normal([1,1,1],stddev=0.156),1,padding='VALID'))
-	    conv4 = tf.nn.elu(tf.nn.conv1d(action_input2,tf.truncated_normal([3,1,1],stddev=0.236),1,padding='VALID'))
-	    conv5 = tf.nn.elu(tf.nn.conv1d(action_input2,tf.truncated_normal([5,1,1],stddev=0.236),1,padding='VALID'))
-	    conv6 = tf.nn.elu(tf.nn.conv1d(action_input2,tf.truncated_normal([1,1,1],stddev=0.236),1,padding='VALID'))
-	    layer1 = slim.fully_connected(slim.flatten(tf.concat([conv1,conv2,conv3],axis=1)),300,activation_fn=tf.nn.elu,weights_initializer=tf.truncated_normal_initializer(stddev=0.05))
-	    layer2 = slim.fully_connected(slim.flatten(tf.concat([conv4,conv5,conv6],axis=1)),200,activation_fn=tf.nn.elu,weights_initializer=tf.truncated_normal_initializer(stddev=0.05))
-            q_value_output = slim.fully_connected(slim.flatten(tf.concat([layer1,layer2],axis=1)),1,activation_fn=None,weights_initializer=tf.truncated_normal_initializer(stddev=0.05))
-	    net = [v for v in tf.trainable_variables() if scope in v.name]
+            layer1 = slim.fully_connected(state_input,300,activation_fn=tf.nn.elu,weights_initializer=tf.truncated_normal_initializer(stddev=0.1))
+            layer2 = slim.fully_connected(layer1,200,activation_fn=tf.nn.elu,weights_initializer=tf.truncated_normal_initializer(stddev=0.01))
+            layer3 = slim.fully_connected(action_input,200,activation_fn=tf.nn.elu,weights_initializer=tf.truncated_normal_initializer(stddev=0.01))
+            q_value_output = slim.fully_connected(slim.flatten(tf.concat([layer2,layer3],axis=1)),1,activation_fn=None,weights_initializer=tf.truncated_normal_initializer(stddev=0.01))
+            net = [v for v in tf.trainable_variables() if scope in v.name]
 
             return state_input,action_input,q_value_output,net
 

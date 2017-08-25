@@ -1,6 +1,8 @@
 import tensorflow as tf
 import numpy as np
 
+x = tf.placeholder(tf.float32, [batch_size, 10, 16])
+
 with tf.Session() as sess:
     mu = tf.placeholder(shape=[3],dtype=tf.float32)
     var = tf.placeholder(shape=[3],dtype=tf.float32)

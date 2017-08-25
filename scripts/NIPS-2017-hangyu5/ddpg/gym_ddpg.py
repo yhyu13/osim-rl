@@ -15,7 +15,7 @@ def process_frame(s):
     return s
 
 def main():
-    env = RunEnv(visualize=False)
+    env = RunEnv(visualize=True)
     env.reset(difficulty = 0)
     agent = DDPG(env)
 

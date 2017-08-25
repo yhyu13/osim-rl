@@ -6,8 +6,6 @@ from helper import *
 
 
 # Hyper Parameters
-LAYER1_SIZE = 400
-LAYER2_SIZE = 300
 LEARNING_RATE = 1e-4
 TAU = 0.001
 
@@ -28,24 +26,20 @@ class ActorNetwork:
 	    self.parameters_gradients,_ = tf.clip_by_global_norm(tf.gradients(self.action_output,self.net,-self.q_gradient_input),5.0)
 	    global_vars_actor = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'global/actor')
 	    self.optimizer = tf.train.AdamOptimizer(LEARNING_RATE).apply_gradients(zip(self.parameters_gradients,global_vars_actor))
-	sess.run(tf.global_variables_initializer())
+	    sess.run(tf.global_variables_initializer())
 
         #self.update_target()
         #self.load_network()
 
 
     def create_network(self,state_dim,action_dim,scope):
-	with tf.variable_scope(scope):
+        with tf.variable_scope(scope):
 
            state_input = tf.placeholder("float",[None,state_dim])
-	   state_input2 = tf.reshape(state_input,shape=[-1,state_dim,1])
-
-           conv1 = tf.nn.elu(tf.nn.conv1d(state_input2,tf.truncated_normal([3,1,1],stddev=0.156),1,padding='VALID'))
-	   conv2 = tf.nn.elu(tf.nn.conv1d(state_input2,tf.truncated_normal([5,1,1],stddev=0.156),1,padding='VALID'))
-	   conv3 = tf.nn.elu(tf.nn.conv1d(state_input2,tf.truncated_normal([1,1,1],stddev=0.156),1,padding='VALID'))
-           layer1 = slim.fully_connected(slim.flatten(tf.concat([conv1,conv2,conv3],axis=1)),300,activation_fn=tf.nn.elu,weights_initializer=tf.truncated_normal_initializer(stddev=0.05))
-	   action_output = tf.clip_by_value(slim.fully_connected(layer1,action_dim,activation_fn=tf.nn.relu,weights_initializer=tf.truncated_normal_initializer(stddev=0.05)),0.0,1.0)
-	   net = [v for v in tf.trainable_variables() if scope in v.name]
+           layer1 = slim.fully_connected(state_input,300,activation_fn=tf.nn.elu,weights_initializer=tf.truncated_normal_initializer(stddev=0.1))
+           layer2 = slim.fully_connected(layer1,200,activation_fn=tf.nn.elu,weights_initializer=tf.truncated_normal_initializer(stddev=0.01))
+           action_output = slim.fully_connected(layer2,action_dim,activation_fn=tf.sigmoid,weights_initializer=tf.truncated_normal_initializer(stddev=0.01))
+           net = [v for v in tf.trainable_variables() if scope in v.name]
 
            return state_input,action_output,net
 
