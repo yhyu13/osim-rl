@@ -40,7 +40,7 @@ def process_state(s,s1):
 def engineered_action(seed):
     a = np.ones(18)*0.05
     if seed < .5:
-        a[17:]=0.9
+        a[17]=0.9
         a[0]=0.9
         a[3]=0.9
         a[4]=0.9
@@ -58,7 +58,7 @@ def engineered_action(seed):
         a[2]=0.9
         a[3]=0.9
         a[4]=0.9
-        a[6]=0.9 
+        a[1]=0.9 
     return a
 
 def normalized_columns_initializer(std=1.0):

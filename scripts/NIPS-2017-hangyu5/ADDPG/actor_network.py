@@ -23,7 +23,7 @@ class ActorNetwork:
         # define training rules
         if scope != 'global/actor':
 	    self.q_gradient_input = tf.placeholder("float",[None,self.action_dim])
-	    self.parameters_gradients,_ = tf.clip_by_global_norm(tf.gradients(self.action_output,self.net,-self.q_gradient_input),5.0)
+	    self.parameters_gradients,_ = tf.clip_by_global_norm(tf.gradients(self.action_output,self.net,-self.q_gradient_input),1.0)
 	    global_vars_actor = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'global/actor')
 	    self.optimizer = tf.train.AdamOptimizer(LEARNING_RATE).apply_gradients(zip(self.parameters_gradients,global_vars_actor))
 	    sess.run(tf.global_variables_initializer())

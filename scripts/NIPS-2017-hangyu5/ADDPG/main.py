@@ -11,10 +11,12 @@ def main():
     parser = argparse.ArgumentParser(description='Train or test neural net motor controller')
     parser.add_argument('--load_model', dest='load_model', action='store_true', default=False)
     parser.add_argument('--num_workers', dest='num_workers',action='store',default=1,type=int)
+    parser.add_argument('--visualize', dest='vis', action='store_true', default=False)
     args = parser.parse_args()
 
     load_model = args.load_model
     num_workers = args.num_workers
+    vis = args.vis
     training = True
     model_path = './models'
 
@@ -34,7 +36,7 @@ def main():
 	        workers = []
 	        # Create worker classes
 	        for i in range(num_workers):
-	            worker = Worker(sess,i,model_path,global_episodes,explore,training)
+	            worker = Worker(sess,i,model_path,global_episodes,explore,training,vis)
 		    workers.append(worker)
 	        saver = tf.train.Saver()
 

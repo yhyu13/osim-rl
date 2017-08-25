@@ -80,15 +80,15 @@ class ei: # Environment Instance
 
 # Hyper Parameters:
 
-REPLAY_BUFFER_SIZE = 10000
-REPLAY_START_SIZE = 5000
+REPLAY_BUFFER_SIZE = 5000
+#REPLAY_START_SIZE = 5000
 BATCH_SIZE = 32
 GAMMA = 0.995
 
 
 class Worker:
     """docstring for DDPG"""
-    def __init__(self,sess,number,model_path,global_episodes,explore,training):
+    def __init__(self,sess,number,model_path,global_episodes,explore,training,vis):
         self.name = 'worker_' + str(number) # name for uploading results
         self.number = number
         # Randomly initialize actor network and critic network
@@ -101,6 +101,8 @@ class Worker:
         self.sess = sess
         self.explore = explore
         self.training = training
+        self.vis = vis # == True only during testing
+        self.total_steps = 0 # for ReplayBuffer to count
 
 
         self.actor_network = ActorNetwork(self.sess,self.state_dim,self.action_dim,self.name+'/actor')
@@ -118,24 +120,20 @@ class Worker:
         self.update_local_ops_critic = update_target_graph('global/critic',self.name+'/critic')
 
     def start(self):
-        if self.name == 'worker_1':
-            self.env = ei(vis=False)#RunEnv(visualize=True)
-        else:
-            self.env = ei(vis=False)#RunEnv(visualize=False)
+        self.env = ei(vis=self.vis)#RunEnv(visualize=True)
             
     def restart(self):
         if self.env != None:
             del self.env
-        if self.name == 'worker_1':
-            self.env = ei(vis=False)#RunEnv(visualize=True)
-        else:
-            self.env = ei(vis=False)#RunEnv(visualize=False)
+        self.env = ei(vis=self.vis)
 
     def train(self):
         # print "train step",self.time_step
         # Sample a random minibatch of N transitions from replay buffer
-        minibatch = self.replay_buffer.get_batch(BATCH_SIZE)
+        tree_idx, minibatch, ISWeights = self.replay_buffer.sample(BATCH_SIZE)
+
         state_batch = np.asarray([data[0] for data in minibatch])
+        
         action_batch = np.asarray([data[1] for data in minibatch])
         reward_batch = np.asarray([data[2] for data in minibatch])
 	    # reward clipping:  scale and clip the values of the rewards to the range -1,+1
@@ -159,7 +157,9 @@ class Worker:
                 y_batch.append(reward_batch[i] + GAMMA * q_value_batch[i])
         y_batch = np.resize(y_batch,[BATCH_SIZE,1])
         # Update critic by minimizing the loss L
-        self.critic_network.train(self.sess,y_batch,state_batch,action_batch)
+        _, abs_errors, loss = self.critic_network.train(self.sess,y_batch,state_batch,action_batch,ISWeights)
+        
+        self.replay_buffer.batch_update(tree_idx, abs_errors)
 
         # Update the actor policy using the sampled gradient:
         action_batch_for_gradients = self.actor_network.actions(self.sess,state_batch)
@@ -185,13 +185,15 @@ class Worker:
 
     def perceive(self,state,action,reward,next_state,done):
         # Store transition (s_t,a_t,r_t,s_{t+1}) in replay buffer
-        self.replay_buffer.add(state,action,reward,next_state,done)
+        transition = [state, action, reward, next_state, done]
+        self.replay_buffer.store(transition)
+        self.total_steps += 1
 
         # Store transitions to replay start size then start training
-        if self.replay_buffer.count() >  REPLAY_START_SIZE and self.training:
+        if self.total_steps >  REPLAY_BUFFER_SIZE and self.training:
             self.train()
 
-        #if self.time_step % 10000 == 0:
+        # if self.time_step % 10000 == 0:
             #self.actor_network.save_network(self.time_step)
             #self.critic_network.save_network(self.time_step)
 
@@ -205,8 +207,9 @@ class Worker:
         else:
             episode_count = 0
         wining_episode_count = 0
-        total_steps = 0
+        
         print ("Starting worker_" + str(self.number))
+        
         if self.name == 'worker_0':
             with open('result.txt','w') as f:
                 f.write(strftime("Starting time: %a, %d %b %Y %H:%M:%S\n", gmtime()))
@@ -219,6 +222,7 @@ class Worker:
             
                 if episode_count % 50 == 0 and episode_count>1: # change Aug24 restart RunEnv every 50 eps
                     self.restart()
+                    
                 returns = []
                 episode_reward = 0
 
