@@ -131,7 +131,7 @@ class Worker:
         # print "train step",self.time_step
         # Sample a random minibatch of N transitions from replay buffer
         tree_idx, minibatch, ISWeights = self.replay_buffer.sample(BATCH_SIZE)
-
+        #print(ISWeights)
         state_batch = np.asarray([data[0] for data in minibatch])
         
         action_batch = np.asarray([data[1] for data in minibatch])
@@ -157,16 +157,17 @@ class Worker:
                 y_batch.append(reward_batch[i] + GAMMA * q_value_batch[i])
         y_batch = np.resize(y_batch,[BATCH_SIZE,1])
         # Update critic by minimizing the loss L
-        _, abs_errors, loss = self.critic_network.train(self.sess,y_batch,state_batch,action_batch,ISWeights)
-        
+        _, abs_errors, loss,a,b,norm = self.critic_network.train(self.sess,y_batch,state_batch,action_batch,ISWeights)
+        #print(b)
+        #print(norm)
         self.replay_buffer.batch_update(tree_idx, abs_errors)
 
         # Update the actor policy using the sampled gradient:
         action_batch_for_gradients = self.actor_network.actions(self.sess,state_batch)
         q_gradient_batch = self.critic_network.gradients(self.sess,state_batch,action_batch_for_gradients)
 
-        self.actor_network.train(self.sess,q_gradient_batch,state_batch)
-
+        _, norm = self.actor_network.train(self.sess,q_gradient_batch,state_batch)
+        #print(norm)
         # Update the target networks
         self.actor_network.update_target(self.sess)
         self.critic_network.update_target(self.sess)
@@ -226,9 +227,9 @@ class Worker:
                 returns = []
                 episode_reward = 0
 
-                if np.random.rand() < 0.9: # change Aug20 apply noise by chance
+                if np.random.rand() < 0.5: # change Aug20 apply noise by chance
                     self.explore -= 1
-
+                    apply_noise = True
                 
                 self.sess.run(self.update_local_ops_actor)
                 self.sess.run(self.update_local_ops_critic)
@@ -247,20 +248,23 @@ class Worker:
                     print "episode:",episode_count
                 # Train
                 done = False
-                chese = 0
+                chese = 100 # change Aug 25 >50 == turn off engineered action
                 
                 for step in xrange(1000):
                     if chese < 50 and episode_count < self.explore:
                         action=engineered_action(seed)
                         #action = np.clip(action+self.exploration_noise.noise()*0.1,0.0,1.0)
                         chese += 1
-                    elif self.explore>0:
+                    elif self.explore>0 and apply_noise:
                         action = np.clip(self.noise_action(s),0.0,1.0) # change Aug20
                     else:
                         action = self.action(s)
                     s2,reward,done,_ = self.env.step(action)
+                    reward *= 10
                     #print('state={}, action={}, reward={}, next_state={}, done={}'.format(state, action, reward, next_state, done))
                     s1 = process_state(s1,s2)
+                    #if chese >=50: # change Aug24 do not include engineered action in the buffer
+                        #self.perceive(s,action,reward,s1,done)
                     self.perceive(s,action,reward,s1,done)
                     s = s1
                     episode_reward += reward

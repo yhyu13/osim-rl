@@ -5,8 +5,8 @@ import math
 from helper import *
 
 
-LEARNING_RATE = 5e-4
-TAU = 0.001
+LEARNING_RATE = 1e-4
+TAU = 0.0005
 L2 = 0.01
 
 class CriticNetwork:
@@ -35,7 +35,7 @@ class CriticNetwork:
             local_vars_critic = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
             self.optimizer = tf.train.AdamOptimizer(LEARNING_RATE)
             self.parameters_gradients,_ = zip(*self.optimizer.compute_gradients(self.cost,local_vars_critic))
-            self.parameters_graidents,_ = tf.clip_by_global_norm(self.parameters_gradients,1.0)
+            self.parameters_graidents,self.global_norm = tf.clip_by_global_norm(self.parameters_gradients,1.0)
             self.optimizer = self.optimizer.apply_gradients(zip(self.parameters_gradients,global_vars_critic))
             self.action_gradients = tf.gradients(self.q_value_output,self.action_input)
             sess.run(tf.global_variables_initializer())
@@ -69,7 +69,7 @@ class CriticNetwork:
 
     def train(self,sess,y_batch,state_batch,action_batch,ISWeights):
         self.time_step += 1
-        return sess.run([self.optimizer,self.abs_errors,self.cost],feed_dict={
+        return sess.run([self.optimizer,self.abs_errors,self.cost,self.y_input,self.q_value_output,self.global_norm],feed_dict={
             self.y_input:y_batch,
             self.state_input:state_batch,
             self.action_input:action_batch,

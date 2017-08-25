@@ -18,7 +18,6 @@ from time import time
 from time import gmtime, strftime
 import multiprocessing
 from multiprocessing import Process, Pipe
-from osim.env import *
 
 # [Hacked] the memory might always be leaking, here's a solution #58
 # https://github.com/stanfordnmbl/osim-rl/issues/58 

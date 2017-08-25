@@ -6,8 +6,8 @@ from helper import *
 
 
 # Hyper Parameters
-LEARNING_RATE = 1e-4
-TAU = 0.001
+LEARNING_RATE = 5e-5
+TAU = 0.0005
 
 class ActorNetwork:
     """docstring for ActorNetwork"""
@@ -23,7 +23,7 @@ class ActorNetwork:
         # define training rules
         if scope != 'global/actor':
 	    self.q_gradient_input = tf.placeholder("float",[None,self.action_dim])
-	    self.parameters_gradients,_ = tf.clip_by_global_norm(tf.gradients(self.action_output,self.net,-self.q_gradient_input),1.0)
+	    self.parameters_gradients,self.global_norm = tf.clip_by_global_norm(tf.gradients(self.action_output,self.net,-self.q_gradient_input),1.0)
 	    global_vars_actor = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'global/actor')
 	    self.optimizer = tf.train.AdamOptimizer(LEARNING_RATE).apply_gradients(zip(self.parameters_gradients,global_vars_actor))
 	    sess.run(tf.global_variables_initializer())
@@ -36,9 +36,9 @@ class ActorNetwork:
         with tf.variable_scope(scope):
 
            state_input = tf.placeholder("float",[None,state_dim])
-           layer1 = slim.fully_connected(state_input,300,activation_fn=tf.nn.elu,weights_initializer=tf.truncated_normal_initializer(stddev=0.1))
-           layer2 = slim.fully_connected(layer1,200,activation_fn=tf.nn.elu,weights_initializer=tf.truncated_normal_initializer(stddev=0.01))
-           action_output = slim.fully_connected(layer2,action_dim,activation_fn=tf.sigmoid,weights_initializer=tf.truncated_normal_initializer(stddev=0.01))
+           layer1 = slim.fully_connected(state_input,300,activation_fn=tf.nn.elu,weights_initializer=tf.truncated_normal_initializer(stddev=0.05))
+           layer2 = slim.fully_connected(layer1,200,activation_fn=tf.nn.elu,weights_initializer=tf.truncated_normal_initializer(stddev=0.05))
+           action_output = slim.fully_connected(layer2,action_dim,activation_fn=tf.nn.elu,weights_initializer=tf.truncated_normal_initializer(stddev=0.05))
            net = [v for v in tf.trainable_variables() if scope in v.name]
 
            return state_input,action_output,net
@@ -56,7 +56,7 @@ class ActorNetwork:
         sess.run(self.target_update)
 
     def train(self,sess,q_gradient_batch,state_batch):
-        sess.run(self.optimizer,feed_dict={
+        return sess.run([self.optimizer,self.global_norm],feed_dict={
             self.q_gradient_input:q_gradient_batch,
             self.state_input:state_batch
             })
