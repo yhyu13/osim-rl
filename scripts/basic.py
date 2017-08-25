@@ -1,6 +1,6 @@
 from osim.env.run import RunEnv
 import numpy as np
-
+from ou_noise import *
 env = RunEnv(visualize=True)
 
 def a1():
@@ -23,15 +23,16 @@ def a1():
     a[17]=0.9
     a[2]=0.9
     a[3]=0.9
-    a[4]=0.9
-    a[6]=0.9
+    #[4]=0.1
+    a[1]=0.9
+    a[0]=0.9
     return a
 
 def normalize(s):
     s = np.asarray(s)
     s = (s-np.mean(s)) / np.std(s)
     return s
-
+noise = OUNoise(18)
 while True:
     observation = env.reset(difficulty = 2)
     a = a1()
@@ -40,8 +41,11 @@ while True:
     while done == False:
         print(i)
         i += 1
+        if i > 50:
+            a += noise.noise()
         ob2, r, done, info = env.step(a)
-        print(normalize(np.asarray(ob2)-np.asarray(ob1)))
+        #print(normalize(np.asarray(ob2)-np.asarray(ob1)))
         ob1 = ob2
     env.reset()
+    noise.reset()
     

@@ -79,71 +79,6 @@ class ei: # Environment Instance
         #print('(ei)waiting for join...')
         self.p.join()
 
-# Added by Andrew Liao
-# for NoisyNet-DQN (using Factorised Gaussian noise)
-# modified from ```dense``` function
-def sample_noise(shape):
-    noise = np.random.normal(size=shape).astype(np.float32)
-    #noise = np.ones(size=shape).astype(np.float32) # whenever not in training, simply return a matrix of ones. 
-    return noise
-    
-global_p_a = 0.
-global_q_a = 0.
-global_p_v = 0.
-global_q_v = 0.
-    
-def noisy_dense(x, size, name, bias=True, activation_fn=tf.identity, factorized=False):
-
-    global global_p_a
-    global global_q_a
-    global global_p_v
-    global global_q_v
-    # https://arxiv.org/pdf/1706.10295.pdf page 4
-    # the function used in eq.7,8 : f(x)=sgn(x)*sqrt(|x|)
-    def f(x):
-        return tf.multiply(tf.sign(x), tf.pow(tf.abs(x), 0.5))
-    # Initializer of \mu and \sigma 
-    mu_init = tf.random_uniform_initializer(minval=-1*1/np.power(x.get_shape().as_list()[1], 0.5),     
-                                                maxval=1*1/np.power(x.get_shape().as_list()[1], 0.5))
-    sigma_init = tf.constant_initializer(0.4/np.power(x.get_shape().as_list()[1], 0.5))
-    # Sample noise from gaussian
-    if name == 'global':
-        if size == 18: # check condition
-            p = sample_noise([128, 18]) # 256 is rnn_size
-            global_p_a = p
-            q = sample_noise([1, 18]) # 3 is action size
-            global_q_a = q
-        else:
-            p = sample_noise([128, 1]) # 256 is rnn_size
-            global_p_v = p
-            q = sample_noise([1, 1]) # 1 is value size
-            global_q_v = q
-    else: # for actors, copy p & q from the global network
-        if size == 3: # check condition
-            p = global_p_a
-            q = global_q_a
-        else:
-            p = global_p_v
-            q = global_q_v
-    
-    f_p = f(p); f_q = f(q)
-    w_epsilon = f_p*f_q; b_epsilon = tf.squeeze(f_q)
-    if not factorized: # just resample the noisy matrix to get independent guassian noise
-        w_epsilon = tf.identity(sample_noise(w_epsilon.get_shape().as_list()))
-    # w = w_mu + w_sigma*w_epsilon
-    options = {18:'action',1:'value'}
-    w_mu = tf.get_variable(name + "/w_mu" + options[size], [x.get_shape()[1], size], initializer=mu_init)
-    w_sigma = tf.get_variable(name + "/w_sigma" + options[size], [x.get_shape()[1], size], initializer=sigma_init)
-    w = w_mu + tf.multiply(w_sigma, w_epsilon)
-    ret = tf.matmul(x, w)
-    if bias:
-        # b = b_mu + b_sigma*b_epsilon
-        b_mu = tf.get_variable(name + "/b_mu" + options[size], [size], initializer=mu_init)
-        b_sigma = tf.get_variable(name + "/b_sigma" + options[size], [size], initializer=sigma_init)
-        b = b_mu + tf.multiply(b_sigma, b_epsilon)
-        return activation_fn(ret + b)
-    else:
-        return activation_fn(ret)
 
 # ================================================================
 # Model components
@@ -151,37 +86,31 @@ def noisy_dense(x, size, name, bias=True, activation_fn=tf.identity, factorized=
 
 # Actor Network------------------------------------------------------------------------------------------------------------
 class AC_Network():
-    def __init__(self,s_size,a_size,scope,trainer,noisy):
+    def __init__(self,s_size,a_size,scope,trainer):
         with tf.variable_scope(scope):
             #Input and visual encoding layers
             self.inputs = tf.placeholder(shape=[None,s_size],dtype=tf.float32)
-            self.imageIn = tf.reshape(self.inputs,shape=[-1,s_size,1])
             
 	        # Create the model, use the default arg scope to configure the batch norm parameters.
-             '''   conv1 = tf.nn.elu(tf.nn.conv1d(self.imageIn,tf.truncated_normal([2,1,8],stddev=0.1),2,padding='VALID'))
-                conv2 = tf.nn.elu(tf.nn.conv1d(conv1,tf.truncated_normal([3,8,16],stddev=0.05),1,padding='VALID'))
-	        
+            '''
+            conv1 = tf.nn.elu(tf.nn.conv1d(self.imageIn,tf.truncated_normal([2,1,8],stddev=0.1),2,padding='VALID'))
+            conv2 = tf.nn.elu(tf.nn.conv1d(conv1,tf.truncated_normal([3,8,16],stddev=0.05),1,padding='VALID'))
+        
             hidden = slim.fully_connected(slim.flatten(conv2),200,activation_fn=tf.nn.elu)'''
             
-            hidden1 = slim.fully_connected(slim.flatten(self.imageIn),300,activation_fn=tf.elu)
-            hidden2 = slim.fully_connected(slim.flatten(self.imageIn),200,activation_fn=tf.elu)
-            rnn_out = hidden2
-            if noisy:
-                # Apply noisy network on fully connected layers
-                # ref: https://arxiv.org/abs/1706.10295
-                self.policy = tf.clip_by_value(noisy_dense(rnn_out,name=scope, size=a_size, activation_fn=tf.nn.relu),0.0,1.0)
-                self.value = noisy_dense(rnn_out,name=scope, size=1) # default activation_fn=tf.identity
-            else:
-                #Output layers for policy and value estimations
-                mu = slim.fully_connected(rnn_out,a_size,activation_fn=tf.sigmoid,weights_initializer=normalized_columns_initializer(0.01),biases_initializer=None)
-                #var = slim.fully_connected(rnn_out,a_size,activation_fn=tf.nn.softplus,weights_initializer=normalized_columns_initializer(0.01),biases_initializer=None)
-                self.normal_dist = tf.contrib.distributions.Normal(mu, 0.05)
-                self.policy = tf.clip_by_value(self.normal_dist.sample(1),0.0,1.0) # self.normal_dist.sample(1)
-                self.value = slim.fully_connected(rnn_out,1,
-                    activation_fn=None,
-                    weights_initializer=normalized_columns_initializer(1.0),
-                    biases_initializer=None)
-                    
+            hidden1 = slim.fully_connected(self.inputs,300,activation_fn=tf.elu)
+            hidden2 = slim.fully_connected(hidden1,200,activation_fn=tf.elu)
+    
+            #Output layers for policy and value estimations
+            mu = slim.fully_connected(hidden2,a_size,activation_fn=tf.sigmoid,weights_initializer=normalized_columns_initializer(0.01),biases_initializer=None)
+            var = slim.fully_connected(hidden2,a_size,activation_fn=tf.nn.softplus,weights_initializer=normalized_columns_initializer(0.01),biases_initializer=None)
+            self.normal_dist = tf.contrib.distributions.Normal(mu, 0.05)
+            self.policy = tf.clip_by_value(self.normal_dist.sample(1),0.0,1.0) # self.normal_dist.sample(1)
+            self.value = slim.fully_connected(hidden2,1,
+                activation_fn=None,
+                weights_initializer=normalized_columns_initializer(1.0),
+                biases_initializer=None)
+                
             #Only the worker network need ops for loss functions and gradient updating.
             if scope != 'global':
                 self.actions = tf.placeholder(shape=[None,a_size],dtype=tf.float32)
@@ -194,10 +123,8 @@ class AC_Network():
                 self.entropy = tf.reduce_sum(self.normal_dist.entropy(),axis=1)  # encourage exploration
                 self.entropy = tf.reduce_sum(self.entropy,axis=0)
                 self.policy_loss = -tf.reduce_sum(self.log_prob*self.advantages,axis=0)
-                if noisy:
-                    self.loss = 0.5 * self.value_loss + self.policy_loss
-                else:
-                    self.loss = 0.5 * self.value_loss + self.policy_loss #- 0.01 * self.entropy
+
+                self.loss = 0.5 * self.value_loss + self.policy_loss - 0.01 * self.entropy
 
                 #Get gradients from local network using local losses
                 local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
@@ -212,7 +139,7 @@ class AC_Network():
                 
 # Learning to run Worker------------------------------------------------------------------------------------------------------------
 class Worker():
-    def __init__(self,name,s_size,a_size,trainer,model_path,global_episodes,noisy,is_training):
+    def __init__(self,name,s_size,a_size,trainer,model_path,global_episodes,is_training):
         self.name = "worker_" + str(name)
         self.number = name        
         self.model_path = model_path
@@ -223,11 +150,10 @@ class Worker():
         self.episode_lengths = []
         self.episode_mean_values = []
         self.summary_writer = tf.summary.FileWriter("train_"+str(self.number))
-        self.noisy = noisy
         self.is_training = is_training
 
         #Create the local copy of the network and the tensorflow op to copy global paramters to local network
-        self.local_AC = AC_Network(s_size,a_size,self.name,trainer,noisy)
+        self.local_AC = AC_Network(s_size,a_size,self.name,trainer)
 	    #self.local_AC_target = AC_Network(s_size,a_size,self.name+'/target',trainer,noisy)
         self.update_local_ops = update_target_graph('global',self.name)
 	    #self.update_local_ops_target = update_target_graph('global/target',self.name+'/target')
@@ -310,7 +236,8 @@ class Worker():
                 episode_step_count = 0
                 done = False
                 
-                seed = np.random.rand()
+                seed = np.random.rand() # engineered action seed (left or right)
+                #seed_chese = np.random.rand() < 0.5 # using demo or not seed
                 
                 self.env.reset()
                 # engineered initial input to make agent's life easier
@@ -328,14 +255,14 @@ class Worker():
                     action,v = sess.run([self.local_AC.policy,self.local_AC.value,self.local_AC.state_out], 
                                 feed_dict={self.local_AC.inputs:[s])
                     if not (episode_count % 5 == 0 and self.name == 'worker_1') and self.is_training:
-                        if explore > 0: # > 0 turn on OU_noise # test the agent every 2 eps
+                        if explore > 0: # > 0 turn on OU_noise
 	                        a = np.clip(action[0,0]+self.exploration_noise.noise(),0.0,1.0)
                         else:
                             a = action[0,0]
-                        if chese < 60 and episode_count < 250:
+                        if chese < 50:
                             a=engineered_action(seed)
                             chese += 1
-                    else:
+                    else: # test the agent
                         a = action[0,0]
                     ob,r,done,_ = self.env.step(a)
                     '''
@@ -403,16 +330,16 @@ class Worker():
                     self.summary_writer.add_summary(summary, episode_count)
                     self.summary_writer.flush()
                     if self.name == 'worker_1':
-			with open('result.txt','a') as f:
+			            with open('result.txt','a') as f:
                             f.write("Episode "+str(episode_count)+" reward (testing): %.2f\n" % episode_reward)
                     if self.name == 'worker_0':
-			with open('result.txt','a') as f:
-			    f.write("Episodes "+str(episode_count)+" mean reward (training): %.2f\n" % mean_reward)
+			            with open('result.txt','a') as f:
+			                f.write("Episodes "+str(episode_count)+" mean reward (training): %.2f\n" % mean_reward)
 
-                        if episode_count % 100 == 0:
+                        if episode_count % 100 == 0 and self.is_training:
                             saver.save(sess,self.model_path+'/model-'+str(episode_count)+'.cptk')
                             with open('result.txt','a') as f:
-			        f.write("Saved Model at episode: "+str(episode_count)+"\n")
+			                    f.write("Saved Model at episode: "+str(episode_count)+"\n")
                 if self.name == 'worker_0' and self.is_training:
                     sess.run(self.increment)
                         
@@ -422,7 +349,7 @@ class Worker():
                     wining_episode_count += 1
                     print('Worker_1 is stepping forward in Episode {}! Reward: {:.2f}. Total percentage of success is: {}%'.format(episode_count, episode_reward, int(wining_episode_count / episode_count * 100)))
                     with open('result.txt','a') as f:
-			f.wirte('Worker_1 is stepping forward in Episode {}! Reward: {:.2f}. Total percentage of success is: {}%\n'.format(episode_count, episode_reward, int(wining_episode_count / episode_count * 100)))
+			            f.wirte('Worker_1 is stepping forward in Episode {}! Reward: {:.2f}. Total percentage of success is: {}%\n'.format(episode_count, episode_reward, int(wining_episode_count / episode_count * 100)))
         
         # All done Stop trail
         # Confirm exit

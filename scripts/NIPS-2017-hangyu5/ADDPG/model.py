@@ -250,9 +250,9 @@ class Worker:
                 chese = 0
                 
                 for step in xrange(1000):
-                    if chese < 60 and episode_count < self.explore:
+                    if chese < 50 and episode_count < self.explore:
                         action=engineered_action(seed)
-                        action = np.clip(action+self.exploration_noise.noise()*0.1,0.0,1.0)
+                        #action = np.clip(action+self.exploration_noise.noise()*0.1,0.0,1.0)
                         chese += 1
                     elif self.explore>0:
                         action = np.clip(self.noise_action(s),0.0,1.0) # change Aug20
@@ -274,7 +274,7 @@ class Worker:
 
                 # Testing:
                 if self.name == 'worker_0' and episode_count % 50 == 0 and episode_count > 1: # change Aug19
-                    if episode_count % 100 == 0:
+                    if episode_count % 100 == 0 and not self.vis:
                         self.save_model(saver, episode_count)
                	    total_return = 0
                     for i in xrange(3):

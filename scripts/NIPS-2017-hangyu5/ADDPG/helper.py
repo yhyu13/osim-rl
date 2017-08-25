@@ -47,7 +47,7 @@ def engineered_action(seed):
         a[8]=0.9
         a[11]=0.9
         a[12]=0.9
-        a[13]=0.9
+        a[9]=0.9
         a[10]=0.9
     else:
         a[8]=0.9
@@ -57,8 +57,9 @@ def engineered_action(seed):
         a[17]=0.9
         a[2]=0.9
         a[3]=0.9
-        a[4]=0.9
+        a[0]=0.9
         a[1]=0.9 
+        
     return a
 
 def normalized_columns_initializer(std=1.0):
