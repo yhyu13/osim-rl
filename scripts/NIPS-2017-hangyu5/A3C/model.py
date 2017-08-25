@@ -154,35 +154,18 @@ class AC_Network():
     def __init__(self,s_size,a_size,scope,trainer,noisy):
         with tf.variable_scope(scope):
             #Input and visual encoding layers
-            self.inputs = tf.placeholder(shape=[None,s_size*2],dtype=tf.float32)
-            self.imageIn = tf.reshape(self.inputs,shape=[-1,s_size*2,1])
+            self.inputs = tf.placeholder(shape=[None,s_size],dtype=tf.float32)
+            self.imageIn = tf.reshape(self.inputs,shape=[-1,s_size,1])
             
 	        # Create the model, use the default arg scope to configure the batch norm parameters.
-            conv1 = tf.nn.elu(tf.nn.conv1d(self.imageIn,tf.truncated_normal([2,1,8],stddev=0.1),2,padding='VALID'))
-            conv2 = tf.nn.elu(tf.nn.conv1d(conv1,tf.truncated_normal([3,8,16],stddev=0.05),1,padding='VALID'))
+             '''   conv1 = tf.nn.elu(tf.nn.conv1d(self.imageIn,tf.truncated_normal([2,1,8],stddev=0.1),2,padding='VALID'))
+                conv2 = tf.nn.elu(tf.nn.conv1d(conv1,tf.truncated_normal([3,8,16],stddev=0.05),1,padding='VALID'))
 	        
-            hidden = slim.fully_connected(slim.flatten(conv2),200,activation_fn=tf.nn.elu)
+            hidden = slim.fully_connected(slim.flatten(conv2),200,activation_fn=tf.nn.elu)'''
             
-            #hidden = slim.fully_connected(slim.flatten(self.imageIn),300,activation_fn=tf.tanh)
-            #Recurrent network for temporal dependencies
-            lstm_cell = tf.contrib.rnn.LayerNormBasicLSTMCell(128,dropout_keep_prob=0.8)
-            #lstm_cell = tf.contrib.rnn.DropoutWrapper(lstm_cell,output_keep_prob=0.5)
-            c_init = np.zeros((1, lstm_cell.state_size.c), np.float32)
-            h_init = np.zeros((1, lstm_cell.state_size.h), np.float32)
-            self.state_init = [c_init, h_init]
-            c_in = tf.placeholder(tf.float32, [1, lstm_cell.state_size.c])
-            h_in = tf.placeholder(tf.float32, [1, lstm_cell.state_size.h])
-            self.state_in = (c_in, h_in)
-            rnn_in = tf.expand_dims(hidden, [0])
-            step_size = tf.shape(self.imageIn)[:1]
-            state_in = tf.contrib.rnn.LSTMStateTuple(c_in, h_in)
-            lstm_outputs, lstm_state = tf.nn.dynamic_rnn(
-                lstm_cell, rnn_in, initial_state=state_in, sequence_length=step_size,
-                time_major=False)
-            lstm_c, lstm_h = lstm_state
-            self.state_out = (lstm_c[:1, :], lstm_h[:1, :])
-            rnn_out = tf.reshape(lstm_outputs, [-1, 128])
-            
+            hidden1 = slim.fully_connected(slim.flatten(self.imageIn),300,activation_fn=tf.elu)
+            hidden2 = slim.fully_connected(slim.flatten(self.imageIn),200,activation_fn=tf.elu)
+            rnn_out = hidden2
             if noisy:
                 # Apply noisy network on fully connected layers
                 # ref: https://arxiv.org/abs/1706.10295
@@ -190,7 +173,7 @@ class AC_Network():
                 self.value = noisy_dense(rnn_out,name=scope, size=1) # default activation_fn=tf.identity
             else:
                 #Output layers for policy and value estimations
-                mu = slim.fully_connected(rnn_out,a_size,activation_fn=tf.nn.elu,weights_initializer=normalized_columns_initializer(0.01),biases_initializer=None)
+                mu = slim.fully_connected(rnn_out,a_size,activation_fn=tf.sigmoid,weights_initializer=normalized_columns_initializer(0.01),biases_initializer=None)
                 #var = slim.fully_connected(rnn_out,a_size,activation_fn=tf.nn.softplus,weights_initializer=normalized_columns_initializer(0.01),biases_initializer=None)
                 self.normal_dist = tf.contrib.distributions.Normal(mu, 0.05)
                 self.policy = tf.clip_by_value(self.normal_dist.sample(1),0.0,1.0) # self.normal_dist.sample(1)
@@ -275,13 +258,10 @@ class Worker():
 
         # Update the global network using gradients from loss
         # Generate network statistics to periodically save
-        rnn_state = self.local_AC.state_init
         feed_dict = {self.local_AC.target_v:discounted_rewards,
             self.local_AC.inputs:np.vstack(observations),
             self.local_AC.actions:np.vstack(actions),
-            self.local_AC.advantages:advantages,
-            self.local_AC.state_in[0]:rnn_state[0],
-            self.local_AC.state_in[1]:rnn_state[1]}
+            self.local_AC.advantages:advantages}
         l,v_l,p_l,e_l,g_n,v_n,_ = sess.run([self.local_AC.loss,self.local_AC.value_loss,
             self.local_AC.policy_loss,
             self.local_AC.entropy,
@@ -299,6 +279,8 @@ class Worker():
         wining_episode_count = 0
         total_steps = 0
         print ("Starting worker " + str(self.number))
+        with open('result.txt','w') as f:
+            f.write(strftime("Starting time: %a, %d %b %Y %H:%M:%S\n", gmtime()))
 	
         explore = 1000
 
@@ -328,31 +310,30 @@ class Worker():
                 episode_step_count = 0
                 done = False
                 
+                seed = np.random.rand()
+                
                 self.env.reset()
                 # engineered initial input to make agent's life easier
-                a=engineered_action()
+                a=engineered_action(seed)
                 ob = self.env.step(a)[0]
-                s = process_frame(ob)
+                s = ob
                 ob = self.env.step(a)[0]
-                s1 = process_frame(ob)
-                s = concat(s,s1)
-                rnn_state = self.local_AC.state_init
+                s1 = ob
+                s = process_state(s,s1)
                 explore -= 1
                 #st = time()
                 chese=0
                 while done == False:
                     #Take an action using probabilities from policy network output.
-                    action,v,rnn_state = sess.run([self.local_AC.policy,self.local_AC.value,self.local_AC.state_out], 
-                                feed_dict={self.local_AC.inputs:[s],
-                                self.local_AC.state_in[0]:rnn_state[0],
-                                self.local_AC.state_in[1]:rnn_state[1]})
+                    action,v = sess.run([self.local_AC.policy,self.local_AC.value,self.local_AC.state_out], 
+                                feed_dict={self.local_AC.inputs:[s])
                     if not (episode_count % 5 == 0 and self.name == 'worker_1') and self.is_training:
                         if explore > 0: # > 0 turn on OU_noise # test the agent every 2 eps
 	                        a = np.clip(action[0,0]+self.exploration_noise.noise(),0.0,1.0)
                         else:
                             a = action[0,0]
                         if chese < 60 and episode_count < 250:
-                            a=engineered_action()
+                            a=engineered_action(seed)
                             chese += 1
                     else:
                         a = action[0,0]
@@ -364,10 +345,10 @@ class Worker():
                         st = ct
                     '''
                     if done == False:
-                        s2 = process_frame(ob)
+                        s2 = ob
                     else:
                         s2 = s1
-                    s1 = concat(s1,s2)
+                    s1 = process_state(s1,s2)
                     #print(s1)    
                     episode_buffer.append([s,a,r,s1,done,v[0,0]])
                     episode_values.append(v[0,0])
@@ -386,9 +367,7 @@ class Worker():
                         # value estimation.
                         if self.is_training:
                             v1 = sess.run(self.local_AC.value, 
-                            feed_dict={self.local_AC.inputs:[s],
-                            self.local_AC.state_in[0]:rnn_state[0],
-                            self.local_AC.state_in[1]:rnn_state[1]})[0,0]
+                            feed_dict={self.local_AC.inputs:[s]})[0,0]
                             l,v_l,p_l,e_l,g_n,v_n = self.train(episode_buffer,sess,gamma,v1)
                             sess.run(self.update_local_ops)
                             episode_buffer = []
@@ -434,11 +413,6 @@ class Worker():
                             saver.save(sess,self.model_path+'/model-'+str(episode_count)+'.cptk')
                             with open('result.txt','a') as f:
 			        f.write("Saved Model at episode: "+str(episode_count)+"\n")
-				try:
-				    f.write(strftime("Time(gm): %a, %d %b %Y %H:%M:%S\n", gmtime()))
-				except:
-				    pass
-                            #sleep(5)
                 if self.name == 'worker_0' and self.is_training:
                     sess.run(self.increment)
                         

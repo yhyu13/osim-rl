@@ -20,28 +20,37 @@ def process_frame(s):
     s = np.asarray(s)
     s = (s-np.mean(s)) / np.std(s)
     return s
+
+# process state (the last 3 entires are obstacle info which should not be processed)
+def process_state(s,s1):
+    s = np.asarray(s)
+    s1 = np.asarray(s1)
+    s = np.hstack((s1[:-3]-s[:-3],s[-3:]))
+    return s
     
-def engineered_action():
+def engineered_action(seed):
     a = np.ones(18)*0.05
-    a[17:]=0.9
-    a[0]=0.9
-    a[3]=0.9
-    a[4]=0.9
-    a[8]=0.9
-    a[11]=0.9
-    a[12]=0.9
-    a[13]=0.9
-    a[10]=0.9
+    if seed < .5:
+        a[17:]=0.9
+        a[0]=0.9
+        a[3]=0.9
+        a[4]=0.9
+        a[8]=0.9
+        a[11]=0.9
+        a[12]=0.9
+        a[13]=0.9
+        a[10]=0.9
+    else:
+        a[8]=0.9
+        a[9]=0.9
+        a[12]=0.9
+        a[13]=0.9
+        a[17]=0.9
+        a[2]=0.9
+        a[3]=0.9
+        a[4]=0.9
+        a[6]=0.9 
     return a
-    
-def concat(s,s1):
-    concat = np.zeros(41*2)
-    for i in range(len(concat)):
-        if i % 2 == 0:
-            concat[i] = s[i/2]
-        else:
-            concat[i] = s1[(i-1)/2]
-    return concat
 
 def normalized_columns_initializer(std=1.0):
     def _initializer(shape, dtype=None, partition_info=None):

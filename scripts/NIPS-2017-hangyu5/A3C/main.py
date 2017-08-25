@@ -31,9 +31,8 @@ def main():
 
     with tf.device("/cpu:0"): 
         global_episodes = tf.Variable(0,dtype=tf.int32,name='global_episodes',trainable=False)
-        trainer = tf.train.AdamOptimizer(learning_rate=1e-3)
+        trainer = tf.train.AdamOptimizer(learning_rate=1e-4)
         master_network = AC_Network(s_size,a_size,'global',None,noisy) # Generate global network
-	#master_network_target = AC_Network(s_size,a_size,'global/target',None,noisy) # Generate global network
         num_cpu = multiprocessing.cpu_count() # Set workers ot number of available CPU threads
         workers = []
             # Create worker classes
