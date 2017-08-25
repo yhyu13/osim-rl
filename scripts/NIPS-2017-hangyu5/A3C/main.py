@@ -1,4 +1,5 @@
 from model import *
+import argparse
 import sys
 import os
 worker_threads = []
@@ -7,20 +8,23 @@ def str2bool(v):
   return v.lower() in ("yes", "true", "t", "1")
 
 def main():
-    if len(sys.argv) == 1:
-        num_workers = 1
-        noisy = True
-    else:
-        num_workers = int(sys.argv[1])
-        noisy = str2bool(sys.argv[2])
+    
+    parser = argparse.ArgumentParser(description='Train or test neural net motor controller')
+    parser.add_argument('--load_model', dest='load_model', action='store_true', default=False)
+    parser.add_argument('--num_workers', dest='num_workers',action='store',default=1,type=int)
+    args = parser.parse_args()
+
     max_episode_length = 1000
     gamma = .995 # discount rate for advantage estimation and reward discounting
     s_size = 41
     a_size = 18 # Agent can move Left, Right, or Straight
     model_path = './models'
-    load_model = False
+    load_model = args.load_model
+    noisy=False
+    num_workers = args.num_workers
     print(" num_workers = %d" % num_workers)
     print(" noisy_net_enabled = %s" % str(noisy))
+    print(" load_model = %s" % str(args.load_model))
 
     tf.reset_default_graph()
 
@@ -36,7 +40,7 @@ def main():
         num_cpu = multiprocessing.cpu_count() # Set workers ot number of available CPU threads
         workers = []
             # Create worker classes
-        for i in range(num_workers):
+        for i in range(args.num_workers):
             worker = Worker(i,s_size,a_size,trainer,model_path,global_episodes,noisy,is_training= True)
             workers.append(worker)
 
@@ -53,6 +57,7 @@ def main():
             print ('Loading Model...')
             ckpt = tf.train.get_checkpoint_state(model_path)
             saver.restore(sess,ckpt.model_checkpoint_path)
+	    print('loading Model succeeded')
         else:
             '''
             dict = {}

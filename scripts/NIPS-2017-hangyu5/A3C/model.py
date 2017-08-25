@@ -69,7 +69,10 @@ class ei: # Environment Instance
 
     def step(self,actions):
         self.pc.send(('step',actions,))
-        return self.pc.recv()
+        try:
+	    return self.pc.recv()
+	except EOFError:  
+            return None
 
     def __del__(self):
         self.pc.send(('exit',))
@@ -421,15 +424,15 @@ class Worker():
                     self.summary_writer.add_summary(summary, episode_count)
                     self.summary_writer.flush()
                     if self.name == 'worker_1':
-			with open('result.txt','w') as f:
+			with open('result.txt','a') as f:
                             f.write("Episode "+str(episode_count)+" reward (testing): %.2f\n" % episode_reward)
                     if self.name == 'worker_0':
-			with open('result.txt','w') as f:
+			with open('result.txt','a') as f:
 			    f.write("Episodes "+str(episode_count)+" mean reward (training): %.2f\n" % mean_reward)
 
                         if episode_count % 100 == 0:
                             saver.save(sess,self.model_path+'/model-'+str(episode_count)+'.cptk')
-                            with open('result.txt','w') as f:
+                            with open('result.txt','a') as f:
 			        f.write("Saved Model at episode: "+str(episode_count)+"\n")
 				try:
 				    f.write(strftime("Time(gm): %a, %d %b %Y %H:%M:%S\n", gmtime()))
@@ -444,7 +447,7 @@ class Worker():
                 if self.name == "worker_1" and episode_reward > 2.:
                     wining_episode_count += 1
                     print('Worker_1 is stepping forward in Episode {}! Reward: {:.2f}. Total percentage of success is: {}%'.format(episode_count, episode_reward, int(wining_episode_count / episode_count * 100)))
-                    with open('result.txt','w') as f:
+                    with open('result.txt','a') as f:
 			f.wirte('Worker_1 is stepping forward in Episode {}! Reward: {:.2f}. Total percentage of success is: {}%\n'.format(episode_count, episode_reward, int(wining_episode_count / episode_count * 100)))
         
         # All done Stop trail
