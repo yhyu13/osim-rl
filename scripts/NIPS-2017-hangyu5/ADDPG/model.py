@@ -121,7 +121,7 @@ class Worker:
         if self.name == 'worker_1':
             self.env = ei(vis=False)#RunEnv(visualize=True)
         else:
-            self.env = ei(vis=True)#RunEnv(visualize=False)
+            self.env = ei(vis=False)#RunEnv(visualize=False)
             
     def restart(self):
         if self.env != None:

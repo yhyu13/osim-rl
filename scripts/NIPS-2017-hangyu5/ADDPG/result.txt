@@ -1,4 +1,200 @@
-Starting time: Fri, 25 Aug 2017 06:53:23
-Episode 0 reward (training): -0.69
-Episode 2 reward (training): 0.23
-episode: 2 Evaluation Average Return: -0.801060470342
+Starting time: Fri, 25 Aug 2017 07:04:18
+Episode 0 reward (training): -0.80
+Episode 5 reward (training): 0.85
+Episode 10 reward (training): 0.76
+Episode 15 reward (training): 0.82
+Episode 20 reward (training): 1.48
+Episode 25 reward (training): -0.78
+Episode 30 reward (training): -0.77
+Episode 35 reward (training): -0.80
+Episode 40 reward (training): 1.26
+Episode 45 reward (training): -0.83
+Episode 50 reward (training): -0.77
+episode: 50 Evaluation Average Return: -0.799909752197
+Episode 55 reward (training): 1.38
+Episode 60 reward (training): 0.85
+Episode 65 reward (training): 0.89
+Episode 70 reward (training): -0.79
+Episode 75 reward (training): 1.04
+Episode 80 reward (training): -0.74
+Episode 85 reward (training): -0.79
+Episode 90 reward (training): -0.77
+Episode 95 reward (training): 1.01
+Episode 100 reward (training): 0.85
+episode: 100 Evaluation Average Return: -0.800715924025
+Episode 105 reward (training): -0.79
+Episode 110 reward (training): 0.84
+Episode 115 reward (training): -0.78
+Episode 120 reward (training): -0.84
+Episode 125 reward (training): 0.84
+Episode 130 reward (training): 0.83
+Episode 135 reward (training): -0.80
+Episode 140 reward (training): 0.79
+Episode 145 reward (training): 0.95
+Episode 150 reward (training): 0.81
+episode: 150 Evaluation Average Return: -0.801595066833
+Episode 155 reward (training): -0.77
+Episode 160 reward (training): -0.79
+Episode 165 reward (training): 1.13
+Episode 170 reward (training): 0.80
+Episode 175 reward (training): 1.21
+Episode 180 reward (training): 0.64
+Episode 185 reward (training): 0.61
+Episode 190 reward (training): 0.54
+Episode 195 reward (training): 0.75
+Episode 200 reward (training): 0.60
+episode: 200 Evaluation Average Return: 0.140063703165
+Episode 205 reward (training): -0.80
+Episode 210 reward (training): 0.70
+Episode 215 reward (training): 0.65
+Episode 220 reward (training): -0.77
+Episode 225 reward (training): -0.84
+Episode 230 reward (training): -0.80
+Episode 235 reward (training): -0.79
+Episode 240 reward (training): -0.72
+Episode 245 reward (training): -0.64
+Episode 250 reward (training): -0.84
+episode: 250 Evaluation Average Return: -0.599015022162
+Episode 255 reward (training): -0.83
+Episode 260 reward (training): -0.78
+Episode 265 reward (training): -0.79
+Episode 270 reward (training): -0.78
+Episode 275 reward (training): 0.52
+Episode 280 reward (training): 0.57
+Episode 285 reward (training): -0.71
+Episode 290 reward (training): -0.71
+Episode 295 reward (training): 0.86
+Episode 300 reward (training): 0.87
+episode: 300 Evaluation Average Return: 0.140167340517
+Episode 305 reward (training): 0.98
+Episode 310 reward (training): 0.88
+Episode 315 reward (training): -0.82
+Episode 320 reward (training): -0.81
+Episode 325 reward (training): 0.89
+Episode 330 reward (training): 1.31
+Episode 335 reward (training): -0.83
+Episode 340 reward (training): -0.32
+Episode 345 reward (training): 1.15
+Episode 350 reward (training): 0.90
+episode: 350 Evaluation Average Return: 0.141430505977
+Episode 355 reward (training): 1.07
+Episode 360 reward (training): 0.80
+Episode 365 reward (training): -0.75
+Episode 370 reward (training): 0.81
+Episode 375 reward (training): 0.10
+Episode 380 reward (training): -0.81
+Episode 385 reward (training): 0.76
+Episode 390 reward (training): -0.87
+Episode 395 reward (training): 1.28
+Episode 400 reward (training): -0.74
+episode: 400 Evaluation Average Return: 0.143670928975
+Episode 405 reward (training): -0.75
+Episode 410 reward (training): -0.79
+Episode 415 reward (training): 0.78
+Episode 420 reward (training): -0.81
+Episode 425 reward (training): 0.84
+Episode 430 reward (training): -0.75
+Episode 435 reward (training): 0.79
+Episode 440 reward (training): 1.19
+Episode 445 reward (training): 0.83
+Episode 450 reward (training): -0.51
+episode: 450 Evaluation Average Return: 0.146897907388
+Episode 455 reward (training): 0.73
+Episode 460 reward (training): -0.81
+Episode 465 reward (training): 0.75
+Episode 470 reward (training): -0.15
+Episode 475 reward (training): 0.82
+Episode 480 reward (training): 0.80
+Episode 485 reward (training): 0.81
+Episode 490 reward (training): 0.84
+Episode 495 reward (training): -0.10
+Episode 500 reward (training): -0.78
+episode: 500 Evaluation Average Return: 0.148736622377
+Episode 505 reward (training): -0.78
+Episode 510 reward (training): -0.80
+Episode 515 reward (training): -0.05
+Episode 520 reward (training): 0.80
+Episode 525 reward (training): 0.83
+Episode 530 reward (training): -0.89
+Episode 535 reward (training): 0.71
+Episode 540 reward (training): -0.79
+Episode 545 reward (training): 0.74
+Episode 550 reward (training): 0.75
+episode: 550 Evaluation Average Return: 0.13841849479
+Episode 555 reward (training): -0.78
+Episode 560 reward (training): -0.06
+Episode 565 reward (training): 0.80
+Episode 570 reward (training): -0.80
+Episode 575 reward (training): 0.84
+Episode 580 reward (training): -0.83
+Episode 585 reward (training): -0.60
+Episode 590 reward (training): -0.86
+Episode 595 reward (training): 0.97
+Episode 600 reward (training): -0.94
+episode: 600 Evaluation Average Return: 0.152075056357
+Episode 605 reward (training): 0.71
+Episode 610 reward (training): 0.80
+Episode 615 reward (training): 0.81
+Episode 620 reward (training): 0.72
+Episode 625 reward (training): -0.74
+Episode 630 reward (training): -0.71
+Episode 635 reward (training): -0.80
+Episode 640 reward (training): -0.82
+Episode 645 reward (training): 0.73
+Episode 650 reward (training): -0.83
+episode: 650 Evaluation Average Return: 0.143589696964
+Episode 655 reward (training): -0.83
+Episode 660 reward (training): 0.90
+Episode 665 reward (training): 0.05
+Episode 670 reward (training): -0.87
+Episode 675 reward (training): 0.81
+Episode 680 reward (training): -0.73
+Episode 685 reward (training): 1.39
+Episode 690 reward (training): -0.85
+Episode 695 reward (training): 0.65
+Episode 700 reward (training): -0.77
+episode: 700 Evaluation Average Return: 0.143182593325
+Episode 705 reward (training): -0.76
+Episode 710 reward (training): 0.73
+Episode 715 reward (training): 0.86
+Episode 720 reward (training): 0.78
+Episode 725 reward (training): 1.13
+Episode 730 reward (training): -0.79
+Episode 735 reward (training): 0.64
+Episode 740 reward (training): 1.02
+Episode 745 reward (training): 1.17
+Episode 750 reward (training): -0.76
+episode: 750 Evaluation Average Return: 0.147498229415
+Episode 755 reward (training): -0.56
+Episode 760 reward (training): 0.64
+Episode 765 reward (training): -0.79
+Episode 770 reward (training): 0.80
+Episode 775 reward (training): -0.71
+Episode 780 reward (training): 0.93
+Episode 785 reward (training): 1.16
+Episode 790 reward (training): 0.82
+Episode 795 reward (training): -0.84
+Episode 800 reward (training): -0.99
+episode: 800 Evaluation Average Return: 0.152469336965
+Episode 805 reward (training): -0.79
+Episode 810 reward (training): -0.80
+Episode 815 reward (training): 0.79
+Episode 820 reward (training): 1.15
+Episode 825 reward (training): 0.77
+Episode 830 reward (training): 0.90
+Episode 835 reward (training): -0.86
+Episode 840 reward (training): -0.82
+Episode 845 reward (training): -0.81
+Episode 850 reward (training): -0.73
+episode: 850 Evaluation Average Return: 0.146251182154
+Episode 855 reward (training): -0.95
+Episode 860 reward (training): 0.85
+Episode 865 reward (training): 0.94
+Episode 870 reward (training): 0.86
+Episode 875 reward (training): 1.69
+Episode 880 reward (training): -0.78
+Episode 885 reward (training): -0.75
+Episode 890 reward (training): -0.80
+Episode 895 reward (training): 0.87
+Episode 900 reward (training): -0.03
+episode: 900 Evaluation Average Return: 0.143013868196
