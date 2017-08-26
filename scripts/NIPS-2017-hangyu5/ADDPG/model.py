@@ -80,7 +80,7 @@ class ei: # Environment Instance
 
 # Hyper Parameters:
 
-REPLAY_BUFFER_SIZE = 5000
+REPLAY_BUFFER_SIZE = 10000
 #REPLAY_START_SIZE = 5000
 BATCH_SIZE = 32
 GAMMA = 0.995
@@ -230,6 +230,8 @@ class Worker:
                 if np.random.rand() < 0.5: # change Aug20 apply noise by chance
                     self.explore -= 1
                     apply_noise = True
+		else:
+		    apply_noise = False
                 
                 self.sess.run(self.update_local_ops_actor)
                 self.sess.run(self.update_local_ops_critic)

@@ -1,3 +1,25 @@
-Starting time: Fri, 25 Aug 2017 23:22:22
-Episode 0 reward (training): -1.00
-Episode 5 reward (training): -6.89
+Starting time: Sat, 26 Aug 2017 01:10:04
+Episode 100 reward (training): 6.27
+episode: 100 Evaluation Average Return: 0.596529859037
+Episode 105 reward (training): 6.09
+Episode 110 reward (training): 6.27
+Episode 115 reward (training): 5.62
+Episode 120 reward (training): 5.63
+Episode 125 reward (training): 6.23
+Episode 130 reward (training): 5.84
+Episode 135 reward (training): 6.70
+Episode 140 reward (training): 6.15
+Episode 145 reward (training): 6.09
+Episode 150 reward (training): 5.65
+episode: 150 Evaluation Average Return: 0.567873611942
+Episode 155 reward (training): 6.16
+Episode 160 reward (training): 6.18
+Episode 165 reward (training): 5.53
+Episode 170 reward (training): 5.82
+Episode 175 reward (training): 6.24
+Episode 180 reward (training): -8.21
+Episode 185 reward (training): 6.31
+Episode 190 reward (training): 5.99
+Episode 195 reward (training): 6.08
+Episode 200 reward (training): -8.31
+episode: 200 Evaluation Average Return: -0.819731513362
