@@ -5,6 +5,9 @@ import tensorflow as tf
 # Helper Function------------------------------------------------------------------------------------------------------------
 # Copies one set of variables to another.
 # Used to set worker network parameters to those of global network.
+def lrelu(x, alpha=0.2):
+  return tf.nn.relu(x) - alpha * tf.nn.relu(-x)
+
 def update_target_graph(from_scope,to_scope):
     from_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, from_scope)
     to_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, to_scope)
@@ -25,7 +28,7 @@ def update_target_network(network,target_network,TAU):
     return target_update
 
 # Normalize state 
-def process_frame(s):
+def normalize(s):
     s = np.asarray(s)
     s = (s-np.mean(s)) / np.std(s)
     return s
@@ -34,7 +37,9 @@ def process_frame(s):
 def process_state(s,s1):
     s = np.asarray(s)
     s1 = np.asarray(s1)
-    s = np.hstack((s1[:-3]-s[:-3],s[-3:]))
+    s_14 = (s1[22:36]-s[22:36]) / 0.01
+    s_3 = (s1[38:]-s[38:]) / 0.01 
+    s = normalize(np.hstack((s1[:36],s_14,s1[36:],s_3)))
     return s
     
 def engineered_action(seed):

@@ -17,66 +17,6 @@ from time import sleep
 from time import time
 from time import gmtime, strftime
 import multiprocessing
-from multiprocessing import Process, Pipe
-
-# [Hacked] the memory might always be leaking, here's a solution #58
-# https://github.com/stanfordnmbl/osim-rl/issues/58 
-# separate process that holds a separate RunEnv instance.
-# This has to be done since RunEnv() in the same process result in interleaved running of simulations.
-def floatify(np):
-    return [float(np[i]) for i in range(len(np))]
-    
-def standalone_headless_isolated(conn,vis):
-    e = RunEnv(visualize=vis)
-    
-    while True:
-        try:
-            msg = conn.recv()
-
-            # messages should be tuples,
-            # msg[0] should be string
-
-            if msg[0] == 'reset':
-                o = e.reset(difficulty=2)
-                conn.send(o)
-            elif msg[0] == 'step':
-                ordi = e.step(msg[1])
-                conn.send(ordi)
-            else:
-                conn.close()
-                del e
-                return
-        except:
-            conn.close()
-            del e
-            raise
-
-# class that manages the interprocess communication and expose itself as a RunEnv.
-class ei: # Environment Instance
-    def __init__(self,vis):
-        self.pc, self.cc = Pipe()
-        self.p = Process(
-            target = standalone_headless_isolated,
-            args=(self.cc,vis,)
-        )
-        self.p.daemon = True
-        self.p.start()
-
-    def reset(self):
-        self.pc.send(('reset',))
-        return self.pc.recv()
-
-    def step(self,actions):
-        self.pc.send(('step',actions,))
-        try:
-	    return self.pc.recv()
-	except EOFError:  
-            return None
-
-    def __del__(self):
-        self.pc.send(('exit',))
-        #print('(ei)waiting for join...')
-        self.p.join()
 
 
 # ================================================================
@@ -97,17 +37,27 @@ class AC_Network():
         
             hidden = slim.fully_connected(slim.flatten(conv2),200,activation_fn=tf.nn.elu)'''
             
-            hidden1 = slim.fully_connected(self.inputs,300,activation_fn=tf.elu)
-            hidden2 = slim.fully_connected(hidden1,200,activation_fn=tf.elu)
+            layer1 = 64
+            layer2 = 64
+            layer3 = 64
+            
+            hidden1 = slim.fully_connected(self.inputs,layer1,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
+            hidden2 = slim.fully_connected(hidden1,layer2,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
+            hidden3 = slim.fully_connected(hidden2,layer3,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
+            
+            hidden1_c = slim.fully_connected(self.inputs,layer1,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
+            hidden2_c = slim.fully_connected(hidden1_c,layer2,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
+            hidden3_c = slim.fully_connected(hidden2_c,layer3,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
     
             #Output layers for policy and value estimations
-            mu = slim.fully_connected(hidden2,a_size,activation_fn=tf.sigmoid,weights_initializer=normalized_columns_initializer(0.01),biases_initializer=None)
-            var = slim.fully_connected(hidden2,a_size,activation_fn=tf.nn.softplus,weights_initializer=normalized_columns_initializer(0.01),biases_initializer=None)
-            self.normal_dist = tf.contrib.distributions.Normal(mu, 0.05)
-            self.policy = tf.clip_by_value(self.normal_dist.sample(1),0.0,1.0) # self.normal_dist.sample(1)
-            self.value = slim.fully_connected(hidden2,1,
+            mu = slim.fully_connected(hidden3,a_size,activation_fn=None,weights_initializer=tf.contrib.layers.xavier_initializer(),biases_initializer=None)
+            var = slim.fully_connected(hidden3,a_size,activation_fn=tf.nn.softplus,weights_initializer=tf.contrib.layers.xavier_initializer(),biases_initializer=None)
+            self.normal_dist = tf.contrib.distributions.Normal(mu, tf.sqrt(var))
+            self.policy = self.normal_dist.sample(1)
+            #self.policy = tf.clip_by_value(self.normal_dist.sample(1), -1.,1.)
+            self.value = slim.fully_connected(hidden3_c,1,
                 activation_fn=None,
-                weights_initializer=normalized_columns_initializer(1.0),
+                weights_initializer=tf.contrib.layers.xavier_initializer(),
                 biases_initializer=None)
                 
             #Only the worker network need ops for loss functions and gradient updating.
@@ -117,24 +67,28 @@ class AC_Network():
                 self.advantages = tf.placeholder(shape=[None],dtype=tf.float32)
 
                 #Loss functions
-                self.value_loss = 0.5 * tf.reduce_sum(tf.square(self.target_v - tf.reshape(self.value,[-1])))
-                self.log_prob = tf.reduce_sum(self.normal_dist.log_prob(self.actions),axis=1)
-                self.entropy = tf.reduce_sum(self.normal_dist.entropy(),axis=1)  # encourage exploration
-                self.entropy = tf.reduce_sum(self.entropy,axis=0)
-                self.policy_loss = -tf.reduce_sum(self.log_prob*self.advantages,axis=0)
+                self.value_loss = tf.reduce_sum(tf.square(self.target_v - tf.reshape(self.value,[-1])))
+                self.log_prob = tf.reduce_sum(self.normal_dist.log_prob(self.actions))
+                self.entropy = self.normal_dist.entropy()  # encourage exploration
 
-                self.loss = 0.5 * self.value_loss + self.policy_loss - 0.01 * self.entropy
+                self.policy_loss = -tf.reduce_sum(self.log_prob*self.advantages) - 0.01 * self.entropy
+
+                self.loss = self.value_loss + self.policy_loss 
 
                 #Get gradients from local network using local losses
                 local_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
-                self.gradients = tf.gradients(self.loss,local_vars)
-                self.var_norms = tf.global_norm(local_vars)
-                grads,self.grad_norms = tf.clip_by_global_norm(self.gradients,40.0)
-
+                self.gradients_a = tf.gradients(self.policy_loss,local_vars)
+                self.gradients_c = tf.gradients(self.value_loss,local_vars)
+                
+                #self.var_norms = tf.global_norm(local_vars)
+                self.gradients_a,self.grad_norms_a = tf.clip_by_global_norm(self.gradients_a,40.0)
+                self.gradients_c,self.grad_norms_c = tf.clip_by_global_norm(self.gradients_c,5.0)
+                
                 #Apply local gradients to global network
                 #Comment these two lines out to stop training
                 global_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'global')
-                self.apply_grads = trainer.apply_gradients(zip(grads,global_vars))
+                self.apply_grads_a = trainer_a.apply_gradients(zip(self.gradients_a,global_vars))
+                self.apply_grads_c = trainer_c.apply_gradients(zip(self.gradients_c,global_vars))
                 
 # Learning to run Worker------------------------------------------------------------------------------------------------------------
 class Worker():

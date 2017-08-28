@@ -30,8 +30,8 @@ def main():
     with tf.Session() as sess:
 	    with tf.device("/cpu:0"): 
            	global_episodes = tf.Variable(0,dtype=tf.int32,name='global_episodes',trainable=False)
-	        global_actor_network = ActorNetwork(sess,41,18,'global'+'/actor')
-	        global_critic_network = CriticNetwork(sess,41,18,'global'+'/critic')
+	        global_actor_network = ActorNetwork(sess,41+14+3,18,'global'+'/actor')
+	        global_critic_network = CriticNetwork(sess,41+14+3,18,'global'+'/critic')
 	        num_cpu = multiprocessing.cpu_count() # Set workers ot number of available CPU threads
 	        workers = []
 	        # Create worker classes

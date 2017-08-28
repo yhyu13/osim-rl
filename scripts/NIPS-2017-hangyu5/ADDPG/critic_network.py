@@ -48,10 +48,13 @@ class CriticNetwork:
             state_input = tf.placeholder("float",[None,state_dim])
             action_input = tf.placeholder("float",[None,action_dim])
 
-            layer1 = slim.fully_connected(state_input,300,activation_fn=tf.nn.elu,weights_initializer=tf.truncated_normal_initializer(stddev=0.1))
-            layer2 = slim.fully_connected(layer1,200,activation_fn=tf.nn.elu,weights_initializer=tf.truncated_normal_initializer(stddev=0.01))
-            layer3 = slim.fully_connected(action_input,200,activation_fn=tf.nn.elu,weights_initializer=tf.truncated_normal_initializer(stddev=0.01))
-            q_value_output = slim.fully_connected(slim.flatten(tf.concat([layer2,layer3],axis=1)),1,activation_fn=None,weights_initializer=tf.truncated_normal_initializer(stddev=0.01))
+            layer1 = lrelu(slim.fully_connected(state_input,256,activation_fn=None,weights_initializer=tf.contrib.layers.xavier_initializer()))
+            layer2 = lrelu(slim.fully_connected(layer1,128,activation_fn=None,weights_initializer=tf.contrib.layers.xavier_initializer()))
+            layer3 = lrelu(slim.fully_connected(layer2,64,activation_fn=None,weights_initializer=tf.contrib.layers.xavier_initializer()))
+            layer4 = lrelu(slim.fully_connected(action_input,128,activation_fn=None,weights_initializer=tf.contrib.layers.xavier_initializer()))
+            layer5 = lrelu(slim.fully_connected(layer4,64,activation_fn=None,weights_initializer=tf.contrib.layers.xavier_initializer()))
+            layer6 = lrelu(slim.fully_connected(layer5,32,activation_fn=None,weights_initializer=tf.contrib.layers.xavier_initializer()))
+            q_value_output = slim.fully_connected(slim.flatten(tf.concat([layer3,layer6],axis=1)),1,activation_fn=None,weights_initializer=tf.contrib.layers.xavier_initializer())
             net = [v for v in tf.trainable_variables() if scope in v.name]
 
             return state_input,action_input,q_value_output,net

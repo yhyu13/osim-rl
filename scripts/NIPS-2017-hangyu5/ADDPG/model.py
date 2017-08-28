@@ -37,7 +37,7 @@ def standalone_headless_isolated(conn,vis):
             # msg[0] should be string
 
             if msg[0] == 'reset':
-                o = e.reset(difficulty=2)
+                o = e.reset(difficulty=1)
                 conn.send(o)
             elif msg[0] == 'step':
                 ordi = e.step(msg[1])
@@ -81,8 +81,8 @@ class ei: # Environment Instance
 # Hyper Parameters:
 
 REPLAY_BUFFER_SIZE = 10000
-#REPLAY_START_SIZE = 5000
-BATCH_SIZE = 32
+REPLAY_START_SIZE = 500
+BATCH_SIZE = 64
 GAMMA = 0.995
 
 
@@ -93,13 +93,14 @@ class Worker:
         self.number = number
         # Randomly initialize actor network and critic network
         # with both their target networks
-        self.state_dim = 41
+        self.state_dim = 41+3+14 # 41 observations plus 17 induced velocity
         self.action_dim = 18
         self.model_path= model_path
         self.global_episodes = global_episodes
         self.increment = self.global_episodes.assign_add(1)
         self.sess = sess
         self.explore = explore
+        self.noise_decay = 1.
         self.training = training
         self.vis = vis # == True only during testing
         self.total_steps = 0 # for ReplayBuffer to count
@@ -157,8 +158,9 @@ class Worker:
                 y_batch.append(reward_batch[i] + GAMMA * q_value_batch[i])
         y_batch = np.resize(y_batch,[BATCH_SIZE,1])
         # Update critic by minimizing the loss L
-        _, abs_errors, loss,a,b,norm = self.critic_network.train(self.sess,y_batch,state_batch,action_batch,ISWeights)
-        #print(b)
+        _,abs_errors,loss,a,b,norm = self.critic_network.train(self.sess,y_batch,state_batch,action_batch,ISWeights)
+        #print(abs_errors)
+        #print(loss)
         #print(norm)
         self.replay_buffer.batch_update(tree_idx, abs_errors)
 
@@ -166,7 +168,7 @@ class Worker:
         action_batch_for_gradients = self.actor_network.actions(self.sess,state_batch)
         q_gradient_batch = self.critic_network.gradients(self.sess,state_batch,action_batch_for_gradients)
 
-        _, norm = self.actor_network.train(self.sess,q_gradient_batch,state_batch)
+        _,norm = self.actor_network.train(self.sess,q_gradient_batch,state_batch)
         #print(norm)
         # Update the target networks
         self.actor_network.update_target(self.sess)
@@ -178,13 +180,13 @@ class Worker:
     def noise_action(self,state):
         # Select action a_t according to the current policy and exploration noise which gradually vanishes
         action = self.actor_network.action(self.sess,state)
-        return action+self.exploration_noise.noise()
+        return action+self.exploration_noise.noise()*self.noise_decay
 
     def action(self,state):
         action = self.actor_network.action(self.sess,state)
         return action
 
-    def perceive(self,state,action,reward,next_state,done):
+    def perceive(self,state,action,reward,next_state,done,action_avg,step,ea):
         # Store transition (s_t,a_t,r_t,s_{t+1}) in replay buffer
         transition = [state, action, reward, next_state, done]
         self.replay_buffer.store(transition)
@@ -193,6 +195,7 @@ class Worker:
         # Store transitions to replay start size then start training
         if self.total_steps >  REPLAY_BUFFER_SIZE and self.training:
             self.train()
+            self.train()
 
         # if self.time_step % 10000 == 0:
             #self.actor_network.save_network(self.time_step)
@@ -200,7 +203,7 @@ class Worker:
 
         # Re-iniitialize the random process when an episode ends
         if done:
-            self.exploration_noise.reset()
+            self.exploration_noise.reset(None) # reset as noise mu as (1- average_activation_each_muscle)
 
     def work(self,coord,saver):
         if self.training:
@@ -221,54 +224,57 @@ class Worker:
             #not_start_training_yet = True
             while not coord.should_stop():
             
-                if episode_count % 50 == 0 and episode_count>1: # change Aug24 restart RunEnv every 50 eps
+                if episode_count % 25 == 0 and episode_count>1: # change Aug24 restart RunEnv every 50 eps
                     self.restart()
                     
                 returns = []
                 episode_reward = 0
-
-                if np.random.rand() < 0.5: # change Aug20 apply noise by chance
-                    self.explore -= 1
-                    apply_noise = True
-		else:
-		    apply_noise = False
+                self.noise_decay = np.cos(self.explore / 2000 * 2* np.pi)
+                #print(self.noise_decay)
+                self.explore -= 1
                 
                 self.sess.run(self.update_local_ops_actor)
                 self.sess.run(self.update_local_ops_critic)
                         
                 state = self.env.reset()
                 #print(observation)
-                seed=np.random.rand()
-                a=engineered_action(seed)
-                ob = self.env.step(a)[0]
+                seed= np.random.rand()
+                ea=engineered_action(seed)
+                ob = self.env.step(ea)[0]
                 s = ob
-                ob = self.env.step(a)[0]
+                #print(s[1:3],s[26:28]) # plvis position appear twice? test says no. https://github.com/stanfordnmbl/osim-rl search "41 observation"
+                ob = self.env.step(ea)[0]
                 s1 = ob
+                #print(s1[1:3],s1[26:28])
                 s = process_state(s,s1)
                     
                 if self.name == 'worker_0':
                     print "episode:",episode_count
                 # Train
                 done = False
-                chese = 100 # change Aug 25 >50 == turn off engineered action
-                
+                chese = 100#int(np.random.rand()*50) # change Aug 25 >50 == turn off engineered action
+                action_avg = np.zeros(18)
                 for step in xrange(1000):
-                    if chese < 50 and episode_count < self.explore:
+                    if chese < 70:
                         action=engineered_action(seed)
-                        #action = np.clip(action+self.exploration_noise.noise()*0.1,0.0,1.0)
+                        #action_avg += action
+                        action = np.clip(action+self.exploration_noise.noise()*0.0,0.0,1.0)
                         chese += 1
-                    elif self.explore>0 and apply_noise:
-                        action = np.clip(self.noise_action(s),0.0,1.0) # change Aug20
+                    elif self.explore>0:
+                        action = np.clip(self.noise_action(s),1e-5,1.0-1e-5) # change Aug20
+                        #action_avg += action
                     else:
                         action = self.action(s)
+                        #action_avg += action
                     s2,reward,done,_ = self.env.step(action)
-                    reward *= 10
                     #print('state={}, action={}, reward={}, next_state={}, done={}'.format(state, action, reward, next_state, done))
                     s1 = process_state(s1,s2)
                     #if chese >=50: # change Aug24 do not include engineered action in the buffer
                         #self.perceive(s,action,reward,s1,done)
-                    self.perceive(s,action,reward,s1,done)
+                    if step % 3 == 0:
+                        self.perceive(s,normalize(action),reward,s1,done,action_avg,step,ea)
                     s = s1
+                    s1 = s2
                     episode_reward += reward
                     if done:
                     	break
