@@ -79,6 +79,8 @@ class ei: # Environment Instance
 ###############################################
 # DDPG Worker
 ###############################################
+pause_perceive = False
+
 class Worker:
     """docstring for DDPG"""
     def __init__(self,sess,number,model_path,global_episodes,explore,training,vis,ReplayBuffer,batch_size,gamma):
@@ -99,7 +101,6 @@ class Worker:
         self.total_steps = 0 # for ReplayBuffer to count
         self.batch_size = batch_size
         self.gamma = gamma
-
 
         self.actor_network = ActorNetwork(self.sess,self.state_dim,self.action_dim,self.name+'/actor')
         self.actor_network.update_target(self.sess)
@@ -125,6 +126,7 @@ class Worker:
     def restart(self): # restart env every ? eps to coutner memory leak
         if self.env != None:
             del self.env
+	    sleep(0.1)
         self.env = ei(vis=self.vis)
 
     def train(self):
@@ -212,6 +214,8 @@ class Worker:
             episode_count = 0
         wining_episode_count = 0
         
+	global pause_perceive
+
         print ("Starting worker_" + str(self.number))
         
         if self.name == 'worker_0':
@@ -224,7 +228,7 @@ class Worker:
             #not_start_training_yet = True
             while not coord.should_stop():
             
-                if episode_count % 25 == 0 and episode_count>1: # change Aug24 restart RunEnv every 50 eps
+                if episode_count % 10 == 0 and episode_count>1: # change Aug24 restart RunEnv every 50 eps
                     self.restart()
                     
                 returns = []
@@ -244,7 +248,7 @@ class Worker:
                 ea=engineered_action(seed)
                 
                 
-                
+                s,s1,s2 = [],[],[]
                 ob = self.env.step(ea)[0]
                 s = ob
                 #print(s[1:3],s[26:28]) # plvis position appear twice? test says no. https://github.com/stanfordnmbl/osim-rl search "41 observation"
@@ -275,18 +279,22 @@ class Worker:
                         s2,reward,done,_ = self.env.step(action)
                     except:
                         print('Env error. Shutdown {}'.format(self.name))
-                        del self.env
+                        if self.env != None:
+			    del self.env
                         return 0
                     #print('state={}, action={}, reward={}, next_state={}, done={}'.format(state, action, reward, next_state, done))
                     s1 = process_state(s1,s2)
                     #if chese >=50: # change Aug24 do not include engineered action in the buffer
                         #self.perceive(s,action,reward,s1,done)
-                    if step % 3 == 0:
+		    sleep(0.001) # THREAD_DELAY
+                    if step % 2 == 0 and not pause_perceive:
                         self.perceive(s,normalize(action),reward*20,s1,done,action_avg,step,ea)
-                        if self.name != "worker_1" and self.name != "worker_0":
-                            sleep(0.001) # THREAD_DELAY
+                        
                     if self.name == "worker_1" and self.total_steps >  1e3 and self.training:
+			pause_perceive=True
+			#print(self.name+'is training')
                         self.train()
+			pause_perceive=False
 
                     s = s1
                     s1 = s2
@@ -301,7 +309,7 @@ class Worker:
 
                 # Testing:
                 if self.name == 'worker_0' and episode_count % 25 == 0 and episode_count > 1: # change Aug19
-                    if episode_count % 100 == 0 and not self.vis:
+                    if episode_count % 50 == 0 and not self.vis:
                         self.save_model(saver, episode_count)
                	    total_return = 0
                     for i in xrange(3):
@@ -317,6 +325,7 @@ class Worker:
                             s2,reward,done,_ = self.env.step(action)
                             s1 = process_state(s1,s2)
                             s = s1
+			    s1 = s2
                             total_return += reward
                             if done:
                                 break
@@ -324,7 +333,7 @@ class Worker:
                     ave_return = total_return/3
                     returns.append(ave_return)
                     with open('result.txt','a') as f:
-                        f.write('episode: {} Evaluation Average Return: {}\n'.format(episode_count,ave_return))
+                        f.write('episode: {} Evaluation(testing) Average Return: {}\n'.format(episode_count,ave_return))
 
                 if self.name == 'worker_0' and self.training:
                     self.sess.run(self.increment)

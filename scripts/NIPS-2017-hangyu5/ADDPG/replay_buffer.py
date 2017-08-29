@@ -108,13 +108,13 @@ class ReplayBuffer(object):  # stored as ( s, a, r, s_ ) in SumTree
         pri_seg = self.tree.total_p / n       # priority segment
         self.beta = np.min([1., self.beta + self.beta_increment_per_sampling])  # max = 1
 
-        min_prob = np.min(self.tree.tree[-self.tree.capacity:]) / self.tree.total_p + 1e-2     # for later calculate ISweight
+        min_prob = np.min(self.tree.tree[-self.tree.capacity:]) / self.tree.total_p + 1e-3     # for later calculate ISweight
         for i in range(n):
             a, b = pri_seg * i, pri_seg * (i + 1)
             v = np.random.uniform(a, b)
             idx, p, data = self.tree.get_leaf(v)
             prob = p / self.tree.total_p
-            ISWeights[i, 0] = np.power(prob/min_prob, -self.beta)
+            ISWeights[i, 0] = np.power(prob/min_prob+1e-3, -self.beta)
             b_idx[i] = idx
             b_memory.append(data)
         return b_idx, b_memory, ISWeights
