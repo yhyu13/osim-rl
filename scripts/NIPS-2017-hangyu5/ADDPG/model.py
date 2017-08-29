@@ -67,8 +67,8 @@ class ei: # Environment Instance
         self.pc.send(('step',actions,))
         try:
             return self.pc.recv()
-        except EOFError:  
-            print('EOFError')
+        except :  
+            print('Error in recv()')
             pass
 
     def __del__(self):
