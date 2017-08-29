@@ -6,7 +6,7 @@ from helper import *
 
 
 # Hyper Parameters
-LEARNING_RATE = 5e-5
+LEARNING_RATE = 1e-4
 TAU = 0.0005
 
 class ActorNetwork:
@@ -23,7 +23,7 @@ class ActorNetwork:
         # define training rules
         if scope != 'global/actor':
 	    self.q_gradient_input = tf.placeholder("float",[None,self.action_dim])
-	    self.parameters_gradients,self.global_norm = tf.clip_by_global_norm(tf.gradients(self.action_output,self.net,-self.q_gradient_input),1.0)
+	    self.parameters_gradients,self.global_norm = tf.clip_by_global_norm(tf.gradients(self.action_output,self.net,-self.q_gradient_input),5.0)
 	    global_vars_actor = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'global/actor')
 	    self.optimizer = tf.train.AdamOptimizer(LEARNING_RATE).apply_gradients(zip(self.parameters_gradients,global_vars_actor))
 	    sess.run(tf.global_variables_initializer())
@@ -39,7 +39,7 @@ class ActorNetwork:
            layer1 = lrelu(slim.fully_connected(state_input,128,activation_fn=None,weights_initializer=tf.contrib.layers.xavier_initializer()))
            layer2 = lrelu(slim.fully_connected(layer1,64,activation_fn=None,weights_initializer=tf.contrib.layers.xavier_initializer()))
            layer3 = lrelu(slim.fully_connected(layer2,32,activation_fn=None,weights_initializer=tf.contrib.layers.xavier_initializer()))
-           action_output = tf.clip_by_value(slim.fully_connected(layer3,action_dim,activation_fn=tf.nn.relu,weights_initializer=tf.contrib.layers.xavier_initializer()),1e-5,1.0-1e-5)
+           action_output = tf.clip_by_value(slim.fully_connected(layer3,action_dim,activation_fn=tf.sigmoid,weights_initializer=tf.contrib.layers.xavier_initializer()),1e-2,1.0-1e-2)
            net = [v for v in tf.trainable_variables() if scope in v.name]
 
            return state_input,action_output,net

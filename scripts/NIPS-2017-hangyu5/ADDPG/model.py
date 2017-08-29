@@ -23,9 +23,6 @@ from multiprocessing import Process, Pipe
 # https://github.com/stanfordnmbl/osim-rl/issues/58 
 # separate process that holds a separate RunEnv instance.
 # This has to be done since RunEnv() in the same process result in interleaved running of simulations.
-def floatify(np):
-    return [float(np[i]) for i in range(len(np))]
-    
 def standalone_headless_isolated(conn,vis):
     e = RunEnv(visualize=vis)
     
@@ -78,17 +75,12 @@ class ei: # Environment Instance
         #print('(ei)waiting for join...')
         self.p.join()
 
-# Hyper Parameters:
-
-REPLAY_BUFFER_SIZE = 10000
-REPLAY_START_SIZE = 500
-BATCH_SIZE = 64
-GAMMA = 0.995
-
-
+###############################################
+# DDPG Worker
+###############################################
 class Worker:
     """docstring for DDPG"""
-    def __init__(self,sess,number,model_path,global_episodes,explore,training,vis):
+    def __init__(self,sess,number,model_path,global_episodes,explore,training,vis,ReplayBuffer,batch_size,gamma):
         self.name = 'worker_' + str(number) # name for uploading results
         self.number = number
         # Randomly initialize actor network and critic network
@@ -104,6 +96,8 @@ class Worker:
         self.training = training
         self.vis = vis # == True only during testing
         self.total_steps = 0 # for ReplayBuffer to count
+        self.batch_size = batch_size
+        self.gamma = gamma
 
 
         self.actor_network = ActorNetwork(self.sess,self.state_dim,self.action_dim,self.name+'/actor')
@@ -112,18 +106,22 @@ class Worker:
         self.critic_network.update_target(self.sess)
 
         # initialize replay buffer
-        self.replay_buffer = ReplayBuffer(REPLAY_BUFFER_SIZE)
+        self.replay_buffer = ReplayBuffer
 
         # Initialize a random process the Ornstein-Uhlenbeck process for action exploration
         self.exploration_noise = OUNoise(self.action_dim)
 
-        self.update_local_ops_actor = update_target_graph('global/actor',self.name+'/actor')
-        self.update_local_ops_critic = update_target_graph('global/critic',self.name+'/critic')
+        self.update_local_ops_actor = update_graph('global/actor',self.name+'/actor')
+        self.update_local_ops_critic = update_graph('global/critic',self.name+'/critic')
+        self.update_local_ops_actor_target = update_graph('global/actor/target',self.name+'/actor/target')
+        self.update_local_ops_critic_target = update_graph('global/critic/target',self.name+'/critic/target')
+        self.update_global_actor_target = update_target_network(self.name+'/actor/target','global/actor/target',5e-3)
+        self.update_global_critic_target = update_target_network(self.name+'/critic/target','global/critic/target',5e-3)
 
     def start(self):
         self.env = ei(vis=self.vis)#RunEnv(visualize=True)
             
-    def restart(self):
+    def restart(self): # restart env every ? eps to coutner memory leak
         if self.env != None:
             del self.env
         self.env = ei(vis=self.vis)
@@ -131,7 +129,7 @@ class Worker:
     def train(self):
         # print "train step",self.time_step
         # Sample a random minibatch of N transitions from replay buffer
-        tree_idx, minibatch, ISWeights = self.replay_buffer.sample(BATCH_SIZE)
+        tree_idx, minibatch, ISWeights = self.replay_buffer.sample(self.batch_size)
         #print(ISWeights)
         state_batch = np.asarray([data[0] for data in minibatch])
         
@@ -144,7 +142,7 @@ class Worker:
         done_batch = np.asarray([data[4] for data in minibatch])
 
         # for action_dim = 1
-        action_batch = np.resize(action_batch,[BATCH_SIZE,self.action_dim])
+        action_batch = np.resize(action_batch,[self.batch_size,self.action_dim])
 
         # Calculate y_batch
 
@@ -155,13 +153,13 @@ class Worker:
             if done_batch[i]:
                 y_batch.append(reward_batch[i])
             else :
-                y_batch.append(reward_batch[i] + GAMMA * q_value_batch[i])
-        y_batch = np.resize(y_batch,[BATCH_SIZE,1])
+                y_batch.append(reward_batch[i] + self.gamma * q_value_batch[i])
+        y_batch = np.resize(y_batch,[self.batch_size,1])
         # Update critic by minimizing the loss L
         _,abs_errors,loss,a,b,norm = self.critic_network.train(self.sess,y_batch,state_batch,action_batch,ISWeights)
-        #print(abs_errors)
-        #print(loss)
-        #print(norm)
+        print(abs_errors)
+        print(loss)
+        print(norm)
         self.replay_buffer.batch_update(tree_idx, abs_errors)
 
         # Update the actor policy using the sampled gradient:
@@ -169,10 +167,12 @@ class Worker:
         q_gradient_batch = self.critic_network.gradients(self.sess,state_batch,action_batch_for_gradients)
 
         _,norm = self.actor_network.train(self.sess,q_gradient_batch,state_batch)
-        #print(norm)
+        print(norm)
         # Update the target networks
-        self.actor_network.update_target(self.sess)
-        self.critic_network.update_target(self.sess)
+        #self.actor_network.update_target(self.sess)
+        #self.critic_network.update_target(self.sess)
+        self.sess.run(self.update_global_actor_target)
+        self.sess.run(self.update_global_critic_target)
 
     def save_model(self, saver, episode):
         saver.save(self.sess, self.model_path + "/model-" + str(episode) + ".ckpt")
@@ -191,11 +191,6 @@ class Worker:
         transition = [state, action, reward, next_state, done]
         self.replay_buffer.store(transition)
         self.total_steps += 1
-
-        # Store transitions to replay start size then start training
-        if self.total_steps >  REPLAY_BUFFER_SIZE and self.training:
-            self.train()
-            self.train()
 
         # if self.time_step % 10000 == 0:
             #self.actor_network.save_network(self.time_step)
@@ -235,10 +230,12 @@ class Worker:
                 
                 self.sess.run(self.update_local_ops_actor)
                 self.sess.run(self.update_local_ops_critic)
+                self.sess.run(self.update_local_ops_actor_target)
+                self.sess.run(self.update_local_ops_critic_target)
                         
                 state = self.env.reset()
                 #print(observation)
-                seed= np.random.rand()
+                seed= 0.1#np.random.rand()
                 ea=engineered_action(seed)
                 ob = self.env.step(ea)[0]
                 s = ob
@@ -261,7 +258,7 @@ class Worker:
                         action = np.clip(action+self.exploration_noise.noise()*0.0,0.0,1.0)
                         chese += 1
                     elif self.explore>0:
-                        action = np.clip(self.noise_action(s),1e-5,1.0-1e-5) # change Aug20
+                        action = np.clip(self.noise_action(s),1e-2,1.0-1e-2) # change Aug20
                         #action_avg += action
                     else:
                         action = self.action(s)
@@ -272,7 +269,10 @@ class Worker:
                     #if chese >=50: # change Aug24 do not include engineered action in the buffer
                         #self.perceive(s,action,reward,s1,done)
                     if step % 3 == 0:
-                        self.perceive(s,normalize(action),reward,s1,done,action_avg,step,ea)
+                        self.perceive(s,normalize(action),reward*20,s1,done,action_avg,step,ea)
+                    if self.name == "worker_1" and self.total_steps >  1e2 and self.training:
+                        self.train()
+                        self.train()
                     s = s1
                     s1 = s2
                     episode_reward += reward
@@ -285,7 +285,7 @@ class Worker:
 
 
                 # Testing:
-                if self.name == 'worker_0' and episode_count % 50 == 0 and episode_count > 1: # change Aug19
+                if self.name == 'worker_0' and episode_count % 25 == 0 and episode_count > 1: # change Aug19
                     if episode_count % 100 == 0 and not self.vis:
                         self.save_model(saver, episode_count)
                	    total_return = 0

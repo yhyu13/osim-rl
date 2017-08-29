@@ -5,7 +5,7 @@ import math
 from helper import *
 
 
-LEARNING_RATE = 1e-4
+LEARNING_RATE = 1e-3
 TAU = 0.0005
 L2 = 0.01
 

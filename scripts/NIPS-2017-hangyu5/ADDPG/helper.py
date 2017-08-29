@@ -8,7 +8,7 @@ import tensorflow as tf
 def lrelu(x, alpha=0.2):
   return tf.nn.relu(x) - alpha * tf.nn.relu(-x)
 
-def update_target_graph(from_scope,to_scope):
+def update_graph(from_scope,to_scope):
     from_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, from_scope)
     to_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, to_scope)
 
