@@ -25,9 +25,9 @@ def main():
 	
 	# hyperparameters
     explore = 2000
-    batch_size = 64
+    batch_size = 1024
     gamma = 0.995
-    replay_buffer_capacity = 5e4
+    replay_buffer_capacity = 1e4
         
     tf.reset_default_graph()
         

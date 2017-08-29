@@ -5,8 +5,8 @@ import math
 from helper import *
 
 
-LEARNING_RATE = 1e-3
-TAU = 0.0005
+LEARNING_RATE = 1e-4
+TAU = 0.001
 L2 = 0.01
 
 class CriticNetwork:

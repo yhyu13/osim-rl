@@ -10,7 +10,7 @@ from critic_network import CriticNetwork
 from actor_network import ActorNetwork
 from replay_buffer import ReplayBuffer
 from helper import *
-from time import gmtime, strftime
+from time import gmtime, strftime, sleep
 
 import opensim as osim
 from osim.http.client import Client
@@ -66,9 +66,10 @@ class ei: # Environment Instance
     def step(self,actions):
         self.pc.send(('step',actions,))
         try:
-	    return self.pc.recv()
-	except EOFError:  
-            return None
+            return self.pc.recv()
+        except EOFError:  
+            print('EOFError')
+            pass
 
     def __del__(self):
         self.pc.send(('exit',))
@@ -148,18 +149,22 @@ class Worker:
 
         next_action_batch = self.actor_network.target_actions(self.sess,next_state_batch)
         q_value_batch = self.critic_network.target_q(self.sess,next_state_batch,next_action_batch)
-        y_batch = []
+        #y_batch = []
+        done_mask = [0 if done else 1 for done in done_batch]
+        '''
         for i in range(len(minibatch)):
             if done_batch[i]:
                 y_batch.append(reward_batch[i])
             else :
-                y_batch.append(reward_batch[i] + self.gamma * q_value_batch[i])
+                y_batch.append(reward_batch[i] + self.gamma * q_value_batch[i])'''
+        y_batch = reward_batch + self.gamma * q_value_batch * done_mask
         y_batch = np.resize(y_batch,[self.batch_size,1])
         # Update critic by minimizing the loss L
         _,abs_errors,loss,a,b,norm = self.critic_network.train(self.sess,y_batch,state_batch,action_batch,ISWeights)
-        print(abs_errors)
-        print(loss)
-        print(norm)
+        #print(a)
+        #print(b)
+        #print(loss)
+        #print(norm)
         self.replay_buffer.batch_update(tree_idx, abs_errors)
 
         # Update the actor policy using the sampled gradient:
@@ -167,7 +172,7 @@ class Worker:
         q_gradient_batch = self.critic_network.gradients(self.sess,state_batch,action_batch_for_gradients)
 
         _,norm = self.actor_network.train(self.sess,q_gradient_batch,state_batch)
-        print(norm)
+        #print(norm)
         # Update the target networks
         #self.actor_network.update_target(self.sess)
         #self.critic_network.update_target(self.sess)
@@ -237,6 +242,9 @@ class Worker:
                 #print(observation)
                 seed= 0.1#np.random.rand()
                 ea=engineered_action(seed)
+                
+                
+                
                 ob = self.env.step(ea)[0]
                 s = ob
                 #print(s[1:3],s[26:28]) # plvis position appear twice? test says no. https://github.com/stanfordnmbl/osim-rl search "41 observation"
@@ -246,7 +254,7 @@ class Worker:
                 s = process_state(s,s1)
                     
                 if self.name == 'worker_0':
-                    print "episode:",episode_count
+                    print("episode:{}".format(str(episode_count)+' '+self.name))
                 # Train
                 done = False
                 chese = 100#int(np.random.rand()*50) # change Aug 25 >50 == turn off engineered action
@@ -263,16 +271,23 @@ class Worker:
                     else:
                         action = self.action(s)
                         #action_avg += action
-                    s2,reward,done,_ = self.env.step(action)
+                    try:
+                        s2,reward,done,_ = self.env.step(action)
+                    except:
+                        print('Env error. Shutdown {}'.format(self.name))
+                        del self.env
+                        return 0
                     #print('state={}, action={}, reward={}, next_state={}, done={}'.format(state, action, reward, next_state, done))
                     s1 = process_state(s1,s2)
                     #if chese >=50: # change Aug24 do not include engineered action in the buffer
                         #self.perceive(s,action,reward,s1,done)
                     if step % 3 == 0:
                         self.perceive(s,normalize(action),reward*20,s1,done,action_avg,step,ea)
-                    if self.name == "worker_1" and self.total_steps >  1e2 and self.training:
+                        if self.name != "worker_1" and self.name != "worker_0":
+                            sleep(0.001) # THREAD_DELAY
+                    if self.name == "worker_1" and self.total_steps >  1e3 and self.training:
                         self.train()
-                        self.train()
+
                     s = s1
                     s1 = s2
                     episode_reward += reward
@@ -318,6 +333,7 @@ class Worker:
             # All done Stop trail
             # Confirm exit
             print('Done '+self.name)
+            return
 
 
 

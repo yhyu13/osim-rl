@@ -6,8 +6,8 @@ from helper import *
 
 
 # Hyper Parameters
-LEARNING_RATE = 1e-4
-TAU = 0.0005
+LEARNING_RATE = 5e-5
+TAU = 0.001
 
 class ActorNetwork:
     """docstring for ActorNetwork"""
