@@ -233,7 +233,7 @@ class Worker:
             #not_start_training_yet = True
             while not coord.should_stop():
             
-                if episode_count % 10 == 0 and episode_count>1: # change Aug24 restart RunEnv every 50 eps
+                if episode_count % 50 == 0 and episode_count>1: # change Aug24 restart RunEnv every 50 eps
                     self.restart()
                     
                 returns = []
@@ -295,7 +295,7 @@ class Worker:
                     if step % 2 == 0 and not pause_perceive:
                         self.perceive(s,normalize(action),reward*20,s1,done,action_avg,step,ea)
                         
-                    if self.name == "worker_1" and self.total_steps > self.replay_buffer_size+1000 and self.training:
+                    if self.name == "worker_1" and self.total_steps > 2000 and self.training:
 			pause_perceive=True
 			#print(self.name+'is training')
                         self.train()

@@ -110,13 +110,20 @@ class ReplayBuffer(object):  # stored as ( s, a, r, s_ ) in SumTree
 
         min_prob = np.min(self.tree.tree[-self.tree.capacity:]) / self.tree.total_p + 1e-3     # for later calculate ISweight
         for i in range(n):
+	    success = False
             a, b = pri_seg * i, pri_seg * (i + 1)
-            v = np.random.uniform(a, b)
-            idx, p, data = self.tree.get_leaf(v)
-            prob = p / self.tree.total_p
-            ISWeights[i, 0] = np.power(prob/min_prob+1e-3, -self.beta)
-            b_idx[i] = idx
-            b_memory.append(data)
+	    while not success:
+                v = np.random.uniform(a, b)
+                idx, p, data = self.tree.get_leaf(v)
+		if data != 0:
+                    prob = p / self.tree.total_p
+                    ISWeights[i, 0] = np.power(prob/min_prob+1e-3, -self.beta)
+                    b_idx[i] = idx
+                    b_memory.append(data)
+		    success = True
+		with open('result.txt','a') as f:
+		    print('Retrive sample not successfully')
+		    f.write('Retrive sample not successfully')
         return b_idx, b_memory, ISWeights
 
     def batch_update(self, tree_idx, abs_errors):
