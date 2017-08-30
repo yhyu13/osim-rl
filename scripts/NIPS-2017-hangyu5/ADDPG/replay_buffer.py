@@ -104,15 +104,15 @@ class ReplayBuffer(object):  # stored as ( s, a, r, s_ ) in SumTree
         self.tree.add(max_p, transition)   # set the max p for new p
 
     def sample(self, n):
-        b_idx, b_memory, ISWeights = np.empty((n,), dtype=np.int32), [] ,np.empty((n, 1))
+        b_idx, b_memory, ISWeights = [], [] ,[]
         pri_seg = self.tree.total_p / n       # priority segment
         self.beta = np.min([1., self.beta + self.beta_increment_per_sampling])  # max = 1
 
         min_prob = np.min(self.tree.tree[-self.tree.capacity:]) / self.tree.total_p + 1e-3     # for later calculate ISweight
         for i in range(n):
-	    success = False
+	    #success = False
             a, b = pri_seg * i, pri_seg * (i + 1)
-	    while not success:
+	    '''while not success:
                 v = np.random.uniform(a, b)
                 idx, p, data = self.tree.get_leaf(v)
 		if data != 0:
@@ -123,8 +123,17 @@ class ReplayBuffer(object):  # stored as ( s, a, r, s_ ) in SumTree
 		    success = True
 		with open('result.txt','a') as f:
 		    print('Retrive sample not successfully')
-		    f.write('Retrive sample not successfully')
-        return b_idx, b_memory, ISWeights
+		    f.write('Retrive sample not successfully')'''
+	    v = np.random.uniform(a, b)
+            idx, p, data = self.tree.get_leaf(v)
+            if data != 0:
+                prob = p / self.tree.total_p
+                ISWeights.append([np.power(prob/min_prob+1e-3, -self.beta)])
+                b_idx.append(idx)
+                b_memory.append(data)
+	    else:
+		continue
+        return np.asarray(b_idx), np.asarray(b_memory), np.asarray(ISWeights)
 
     def batch_update(self, tree_idx, abs_errors):
         abs_errors += self.epsilon  # convert to abs and avoid 0

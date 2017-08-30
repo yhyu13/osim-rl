@@ -1,4 +1,1 @@
-Starting time: Wed, 30 Aug 2017 18:22:27
-Episode 0 reward (training): -1.00
-Episode 5 reward (training): -0.78
-Episode 10 reward (training): -0.81
+Starting time: Wed, 30 Aug 2017 21:20:35

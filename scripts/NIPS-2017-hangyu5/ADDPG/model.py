@@ -16,6 +16,16 @@ import opensim as osim
 from osim.http.client import Client
 from osim.env import *
 
+import sys
+class HiddenPrints:
+    def __enter__(self):
+        self._original_stdout = sys.stdout
+        sys.stdout = open(os.devnull, 'w')
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        sys.stdout = self._original_stdout
+
+
 import multiprocessing
 from multiprocessing import Process, Pipe
 
@@ -24,7 +34,8 @@ from multiprocessing import Process, Pipe
 # separate process that holds a separate RunEnv instance.
 # This has to be done since RunEnv() in the same process result in interleaved running of simulations.
 def standalone_headless_isolated(conn,vis):
-    e = RunEnv(visualize=vis)
+    with HiddenPrints():
+       e = RunEnv(visualize=vis)
     
     while True:
         try:
@@ -75,6 +86,9 @@ class ei: # Environment Instance
         self.pc.send(('exit',))
         #print('(ei)waiting for join...')
         self.p.join()
+	del self.pc
+	del self.cc
+	del self.p
 
 ###############################################
 # DDPG Worker
@@ -135,6 +149,8 @@ class Worker:
         # Sample a random minibatch of N transitions from replay buffer
         tree_idx, minibatch, ISWeights = self.replay_buffer.sample(self.batch_size)
         #print(ISWeights)
+	#self.batch_size = len(minibatch)
+	print(self.batch_size)
         state_batch = np.asarray([data[0] for data in minibatch])
         
         action_batch = np.asarray([data[1] for data in minibatch])
@@ -164,10 +180,10 @@ class Worker:
         y_batch = np.resize(y_batch,[self.batch_size,1])
         # Update critic by minimizing the loss L
         _,abs_errors,loss,a,b,norm = self.critic_network.train(self.sess,y_batch,state_batch,action_batch,ISWeights)
-        #print(a)
-        #print(b)
-        #print(loss)
-        #print(norm)
+        print(a)
+        print(b)
+        print(loss)
+        print(norm)
         self.replay_buffer.batch_update(tree_idx, abs_errors)
 
         # Update the actor policy using the sampled gradient:
@@ -175,7 +191,7 @@ class Worker:
         q_gradient_batch = self.critic_network.gradients(self.sess,state_batch,action_batch_for_gradients)
 
         _,norm = self.actor_network.train(self.sess,q_gradient_batch,state_batch)
-        #print(norm)
+        print(norm)
         # Update the target networks
         #self.actor_network.update_target(self.sess)
         #self.critic_network.update_target(self.sess)
@@ -233,12 +249,12 @@ class Worker:
             #not_start_training_yet = True
             while not coord.should_stop():
             
-                if episode_count % 50 == 0 and episode_count>1: # change Aug24 restart RunEnv every 50 eps
+                if episode_count % 5 == 0 and episode_count>1: # change Aug24 restart RunEnv every 50 eps
                     self.restart()
                     
                 returns = []
                 episode_reward = 0
-                self.noise_decay = np.cos(self.explore / 2000 * 2* np.pi)
+                self.noise_decay = np.cos(self.explore / 100 * 2* np.pi)
                 #print(self.noise_decay)
                 self.explore -= 1
                 
@@ -292,10 +308,10 @@ class Worker:
                     #if chese >=50: # change Aug24 do not include engineered action in the buffer
                         #self.perceive(s,action,reward,s1,done)
 		    sleep(0.001) # THREAD_DELAY
-                    if step % 2 == 0 and not pause_perceive:
+                    if step % 3 == 0 and not pause_perceive:
                         self.perceive(s,normalize(action),reward*20,s1,done,action_avg,step,ea)
                         
-                    if self.name == "worker_1" and self.total_steps > 2000 and self.training:
+                    if self.name == "worker_1" and self.total_steps > 100 and self.training:
 			pause_perceive=True
 			#print(self.name+'is training')
                         self.train()
@@ -314,7 +330,7 @@ class Worker:
 
 
                 # Testing:
-                if self.name == 'worker_0' and episode_count % 25 == 0 and episode_count > 1: # change Aug19
+                if self.name == 'worker_2' and episode_count % 10 == 0 and episode_count > 1: # change Aug19
                     if episode_count % 50 == 0 and not self.vis:
                         self.save_model(saver, episode_count)
                	    total_return = 0

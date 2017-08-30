@@ -25,7 +25,7 @@ def main():
 	
 	# hyperparameters
     explore = 2000
-    batch_size = 1024
+    batch_size = 64
     gamma = 0.995
     replay_buffer_capacity = 1e4
         
