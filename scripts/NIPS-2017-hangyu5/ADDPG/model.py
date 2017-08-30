@@ -118,8 +118,8 @@ class Worker:
         self.update_local_ops_critic = update_graph('global/critic',self.name+'/critic')
         self.update_local_ops_actor_target = update_graph('global/actor/target',self.name+'/actor/target')
         self.update_local_ops_critic_target = update_graph('global/critic/target',self.name+'/critic/target')
-        self.update_global_actor_target = update_target_network(self.name+'/actor/target','global/actor/target',5e-3)
-        self.update_global_critic_target = update_target_network(self.name+'/critic/target','global/critic/target',5e-3)
+        self.update_global_actor_target = update_target_network(self.name+'/actor/target','global/actor/target',1e-4)
+        self.update_global_critic_target = update_target_network(self.name+'/critic/target','global/critic/target',1e-4)
 
     def start(self):
         self.env = ei(vis=self.vis)#RunEnv(visualize=True)
@@ -181,6 +181,10 @@ class Worker:
         #self.critic_network.update_target(self.sess)
         self.sess.run(self.update_global_actor_target)
         self.sess.run(self.update_global_critic_target)
+        self.sess.run(self.update_local_ops_actor)
+        self.sess.run(self.update_local_ops_critic)
+        self.sess.run(self.update_local_ops_actor_target)
+        self.sess.run(self.update_local_ops_critic_target)
 
     def save_model(self, saver, episode):
         saver.save(self.sess, self.model_path + "/model-" + str(episode) + ".ckpt")

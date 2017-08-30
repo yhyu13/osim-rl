@@ -6,7 +6,7 @@ from helper import *
 
 
 # Hyper Parameters
-LEARNING_RATE = 5e-5
+LEARNING_RATE = 1e-4
 TAU = 0.001
 
 class ActorNetwork:
@@ -36,10 +36,10 @@ class ActorNetwork:
         with tf.variable_scope(scope):
 
            state_input = tf.placeholder("float",[None,state_dim])
-           layer1 = lrelu(slim.fully_connected(state_input,128,activation_fn=None,weights_initializer=tf.contrib.layers.xavier_initializer()))
-           layer2 = lrelu(slim.fully_connected(layer1,64,activation_fn=None,weights_initializer=tf.contrib.layers.xavier_initializer()))
-           layer3 = lrelu(slim.fully_connected(layer2,32,activation_fn=None,weights_initializer=tf.contrib.layers.xavier_initializer()))
-           action_output = tf.clip_by_value(slim.fully_connected(layer3,action_dim,activation_fn=tf.sigmoid,weights_initializer=tf.contrib.layers.xavier_initializer()),1e-2,1.0-1e-2)
+           layer1 = slim.fully_connected(state_input,256,activation_fn=None,weights_initializer=tf.contrib.layers.xavier_initializer())
+           layer2 = slim.fully_connected(tf.nn.dropout(layer1,0.8),128,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
+           layer3 = slim.fully_connected(tf.nn.dropout(layer2,0.8),128,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
+           action_output = tf.clip_by_value(slim.fully_connected(layer3,action_dim,activation_fn=tf.nn.relu,weights_initializer=tf.random_uniform_initializer(-3e-3,3e-3)),-1e-2,1.0-1e-2)
            net = [v for v in tf.trainable_variables() if scope in v.name]
 
            return state_input,action_output,net
