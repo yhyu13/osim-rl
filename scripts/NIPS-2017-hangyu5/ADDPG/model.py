@@ -83,7 +83,7 @@ pause_perceive = False
 
 class Worker:
     """docstring for DDPG"""
-    def __init__(self,sess,number,model_path,global_episodes,explore,training,vis,ReplayBuffer,batch_size,gamma):
+    def __init__(self,sess,number,model_path,global_episodes,explore,training,vis,ReplayBuffer,batch_size,gamma,replay_buffer_size):
         self.name = 'worker_' + str(number) # name for uploading results
         self.number = number
         # Randomly initialize actor network and critic network
@@ -101,6 +101,7 @@ class Worker:
         self.total_steps = 0 # for ReplayBuffer to count
         self.batch_size = batch_size
         self.gamma = gamma
+	self.replay_buffer_size = replay_buffer_size
 
         self.actor_network = ActorNetwork(self.sess,self.state_dim,self.action_dim,self.name+'/actor')
         self.actor_network.update_target(self.sess)
@@ -290,7 +291,7 @@ class Worker:
                     if step % 2 == 0 and not pause_perceive:
                         self.perceive(s,normalize(action),reward*20,s1,done,action_avg,step,ea)
                         
-                    if self.name == "worker_1" and self.total_steps >  1e3 and self.training:
+                    if self.name == "worker_1" and self.total_steps >  2*replay_buffer_size and self.training:
 			pause_perceive=True
 			#print(self.name+'is training')
                         self.train()

@@ -104,7 +104,7 @@ class ReplayBuffer(object):  # stored as ( s, a, r, s_ ) in SumTree
         self.tree.add(max_p, transition)   # set the max p for new p
 
     def sample(self, n):
-        b_idx, b_memory, ISWeights = np.empty((n,), dtype=np.int32), [] ,np.empty((n, 1))
+        b_idx, b_memory, ISWeights = np.empty((n,), dtype=np.int32), numpy.asarray([]) ,np.empty((n, 1))
         pri_seg = self.tree.total_p / n       # priority segment
         self.beta = np.min([1., self.beta + self.beta_increment_per_sampling])  # max = 1
 
