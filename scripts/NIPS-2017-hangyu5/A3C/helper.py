@@ -25,7 +25,9 @@ def process_frame(s):
 def process_state(s,s1):
     s = np.asarray(s)
     s1 = np.asarray(s1)
-    s = np.hstack((s1[:-3]-s[:-3],s[-3:]))
+    s_14 = (s1[22:36]-s[22:36]) / 0.01
+    s_3 = (s1[38:]-s[38:]) / 0.01
+    s = normalize(np.hstack((s1[:36],s_14,s1[36:],s_3)))    
     return s
     
 def engineered_action(seed):
@@ -99,7 +101,7 @@ def standalone_headless_isolated(conn,vis):
             # msg[0] should be string
 
             if msg[0] == 'reset':
-                o = e.reset(difficulty=2)
+                o = e.reset(difficulty=1)
                 conn.send(o)
             elif msg[0] == 'step':
                 ordi = e.step(msg[1])
@@ -132,8 +134,8 @@ class ei: # Environment Instance
         self.pc.send(('step',actions,))
         try:
 	    return self.pc.recv()
-	except EOFError:  
-            return None
+	except:  
+            raise
 
     def __del__(self):
         self.pc.send(('exit',))

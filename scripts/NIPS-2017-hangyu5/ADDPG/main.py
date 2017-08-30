@@ -23,11 +23,11 @@ def main():
     if not os.path.exists(model_path):
         os.makedirs(model_path)
 	
-	# hyperparameters
+    # hyperparameters
     explore = 2000
     batch_size = 64
     gamma = 0.995
-    replay_buffer_capacity = 1e4
+    replay_buffer_capacity = 2e3
         
     tf.reset_default_graph()
         

@@ -13,7 +13,7 @@ def main():
 
     max_episode_length = 1000
     gamma = .995 # discount rate for advantage estimation and reward discounting
-    s_size = 41
+    s_size = 58
     a_size = 18 # Agent can move Left, Right, or Straight
     model_path = './models'
     load_model = args.load_model
