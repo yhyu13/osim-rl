@@ -270,7 +270,7 @@ class Worker:
                         #action_avg += action
                         action = np.clip(action+self.exploration_noise.noise()*0.0,0.0,1.0)
                         chese += 1
-                    elif self.explore>0:
+                    elif self.explore>0 and self.training:
                         action = np.clip(self.noise_action(s),1e-2,1.0-1e-2) # change Aug20
                         #action_avg += action
                     else:
@@ -291,9 +291,10 @@ class Worker:
                     if step % 2 == 0 and not pause_perceive:
                         self.perceive(s,normalize(action),reward*20,s1,done,action_avg,step,ea)
                         
-                    if self.name == "worker_1" and self.total_steps >  2*replay_buffer_size and self.training:
+                    if self.name == "worker_1" and self.total_steps >  2*self.replay_buffer_size and self.training:
 			pause_perceive=True
 			#print(self.name+'is training')
+                        self.train()
                         self.train()
 			pause_perceive=False
 

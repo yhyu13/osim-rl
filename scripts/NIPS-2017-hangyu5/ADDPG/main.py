@@ -17,7 +17,7 @@ def main():
     load_model = args.load_model
     num_workers = args.num_workers
     vis = args.vis
-    training = True
+    training = not load_model
     model_path = './models'
 
     if not os.path.exists(model_path):
