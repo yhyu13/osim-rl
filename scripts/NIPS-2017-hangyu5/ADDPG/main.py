@@ -26,8 +26,8 @@ def main():
     # hyperparameters
     explore = 2000
     batch_size = 64
-    gamma = 0.995
-    replay_buffer_capacity = 2e3
+    gamma = 0.999
+    replay_buffer_capacity = 5e3
         
     tf.reset_default_graph()
         
@@ -39,7 +39,7 @@ def main():
 	        num_cpu = multiprocessing.cpu_count() # Set workers ot number of available CPU threads
 	        workers = []
 	        # Create worker classes
-	        replaybuffer = ReplayBuffer(capacity=int(num_workers*replay_buffer_capacity)) # workers share a single replay buffer
+	        replaybuffer = ReplayBuffer(int(num_workers*replay_buffer_capacity)) # workers share a single replay buffer
 	        for i in range(num_workers):
 	            worker = Worker(sess,i,model_path,global_episodes,explore,training,vis,replaybuffer,batch_size,gamma,int(replay_buffer_capacity))
 		    workers.append(worker)

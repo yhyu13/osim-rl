@@ -149,9 +149,9 @@ class Worker:
     def train(self):
         # print "train step",self.time_step
         # Sample a random minibatch of N transitions from replay buffer
-        tree_idx, minibatch, ISWeights = self.replay_buffer.sample(self.batch_size)
+        minibatch = self.replay_buffer.get_batch(self.batch_size)
         #print(ISWeights)
-	self.batch_size = len(minibatch)
+	BATCH_SIZE = len(minibatch)
 	#print(self.batch_size)
         state_batch = np.asarray([data[0] for data in minibatch])
         
@@ -164,7 +164,7 @@ class Worker:
         done_batch = np.asarray([data[4] for data in minibatch])
 
         # for action_dim = 1
-        action_batch = np.resize(action_batch,[self.batch_size,self.action_dim])
+        action_batch = np.resize(action_batch,[BATCH_SIZE,self.action_dim])
 
         # Calculate y_batch
 
@@ -179,21 +179,20 @@ class Worker:
             else :
                 y_batch.append(reward_batch[i] + self.gamma * q_value_batch[i])'''
         y_batch = reward_batch + self.gamma * q_value_batch * done_mask
-        y_batch = np.resize(y_batch,[self.batch_size,1])
+        y_batch = np.resize(y_batch,[BATCH_SIZE,1])
         # Update critic by minimizing the loss L
-        _,abs_errors,loss,a,b,norm = self.critic_network.train(self.sess,y_batch,state_batch,action_batch,ISWeights)
-        #print(a)
-        #print(b)
-        #print(loss)
-        #print(norm)
-        self.replay_buffer.batch_update(tree_idx, abs_errors)
+        _,loss,a,b,norm = self.critic_network.train(self.sess,y_batch,state_batch,action_batch)
+        print(a)
+        print(b)
+        print(loss)
+        print(norm)
 
         # Update the actor policy using the sampled gradient:
         action_batch_for_gradients = self.actor_network.actions(self.sess,state_batch)
         q_gradient_batch = self.critic_network.gradients(self.sess,state_batch,action_batch_for_gradients)
 
         _,norm = self.actor_network.train(self.sess,q_gradient_batch,state_batch)
-        #print(norm)
+        print(norm)
         # Update the target networks
         #self.actor_network.update_target(self.sess)
         #self.critic_network.update_target(self.sess)
@@ -218,8 +217,7 @@ class Worker:
 
     def perceive(self,state,action,reward,next_state,done,action_avg,step,ea):
         # Store transition (s_t,a_t,r_t,s_{t+1}) in replay buffer
-        transition = [state, action, reward, next_state, done]
-        self.replay_buffer.store(transition)
+        self.replay_buffer.add(state, action, reward, next_state, done)
         self.total_steps += 1
 
         # if self.time_step % 10000 == 0:
@@ -251,7 +249,7 @@ class Worker:
             #not_start_training_yet = True
             while not coord.should_stop():
             
-                if episode_count % 100 == 0 and episode_count>1: # change Aug24 restart RunEnv every 50 eps
+                if episode_count % 200 == 0 and episode_count>1: # change Aug24 restart RunEnv every 50 eps
                     self.restart()
                     
                 returns = []
@@ -309,11 +307,11 @@ class Worker:
                     s1 = process_state(s1,s2)
                     #if chese >=50: # change Aug24 do not include engineered action in the buffer
                         #self.perceive(s,action,reward,s1,done)
-		    sleep(0.001) # THREAD_DELAY
-                    if step % 3 == 0 and not pause_perceive:
+		    #sleep(0.001) # THREAD_DELAY
+                    if step % 2 == 0 and not pause_perceive:
                         self.perceive(s,action,reward*20,s1,done,action_avg,step,ea)
                         
-                    if self.name == "worker_1" and self.total_steps > 5000 and self.training:
+                    if self.name == "worker_1" and self.total_steps > 1e2 and self.training:
 			pause_perceive=True
 			#print(self.name+'is training')
                         self.train()
