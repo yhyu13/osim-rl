@@ -2,6 +2,9 @@ import numpy as np
 import tensorflow as tf
 import scipy.signal as ss
 from multiprocessing import Process, Pipe
+import opensim as osim
+from osim.http.client import Client
+from osim.env import *
 
 # Helper Function------------------------------------------------------------------------------------------------------------
 # Copies one set of variables to another.

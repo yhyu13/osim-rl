@@ -151,7 +151,7 @@ class Worker:
         # Sample a random minibatch of N transitions from replay buffer
         tree_idx, minibatch, ISWeights = self.replay_buffer.sample(self.batch_size)
         #print(ISWeights)
-	#self.batch_size = len(minibatch)
+	self.batch_size = len(minibatch)
 	#print(self.batch_size)
         state_batch = np.asarray([data[0] for data in minibatch])
         
@@ -311,9 +311,9 @@ class Worker:
                         #self.perceive(s,action,reward,s1,done)
 		    sleep(0.001) # THREAD_DELAY
                     if step % 3 == 0 and not pause_perceive:
-                        self.perceive(s,normalize(action),reward*20,s1,done,action_avg,step,ea)
+                        self.perceive(s,action,reward*20,s1,done,action_avg,step,ea)
                         
-                    if self.name == "worker_1" and self.total_steps > 1000 and self.training:
+                    if self.name == "worker_1" and self.total_steps > 5000 and self.training:
 			pause_perceive=True
 			#print(self.name+'is training')
                         self.train()

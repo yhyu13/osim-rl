@@ -9,6 +9,7 @@ def main():
     parser = argparse.ArgumentParser(description='Train or test neural net motor controller')
     parser.add_argument('--load_model', dest='load_model', action='store_true', default=False)
     parser.add_argument('--num_workers', dest='num_workers',action='store',default=1,type=int)
+    parser.add_argument('--visualize', dest='vis', action='store_true', default=False)
     args = parser.parse_args()
 
     max_episode_length = 1000
@@ -17,10 +18,9 @@ def main():
     a_size = 18 # Agent can move Left, Right, or Straight
     model_path = './models'
     load_model = args.load_model
-    noisy=False
+    vis = args.vis
     num_workers = args.num_workers
     print(" num_workers = %d" % num_workers)
-    print(" noisy_net_enabled = %s" % str(noisy))
     print(" load_model = %s" % str(args.load_model))
 
     tf.reset_default_graph()
@@ -31,13 +31,14 @@ def main():
 
     with tf.device("/cpu:0"): 
         global_episodes = tf.Variable(0,dtype=tf.int32,name='global_episodes',trainable=False)
-        trainer = tf.train.AdamOptimizer(learning_rate=1e-4)
-        master_network = AC_Network(s_size,a_size,'global',None,noisy) # Generate global network
+        trainer_a = tf.train.AdamOptimizer(learning_rate=1e-4)
+        trainer_c = tf.train.AdamOptimizer(learning_rate=1.1e-4)
+        master_network = AC_Network(s_size,a_size,'global',trainer_a,trainer_c) # Generate global network
         num_cpu = multiprocessing.cpu_count() # Set workers ot number of available CPU threads
         workers = []
             # Create worker classes
         for i in range(args.num_workers):
-            worker = Worker(i,s_size,a_size,trainer,model_path,global_episodes,noisy,is_training= True)
+            worker = Worker(i,s_size,a_size,trainer_a,trainer_c,model_path,global_episodes,is_training= True,vis=vis)
             workers.append(worker)
 
         saver = tf.train.Saver()

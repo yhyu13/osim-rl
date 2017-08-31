@@ -2,10 +2,6 @@ from ou_noise import OUNoise
 
 from helper import *
 
-import opensim as osim
-from osim.http.client import Client
-from osim.env import *
-
 import threading
 import numpy as np
 import tensorflow as tf
@@ -25,7 +21,7 @@ import multiprocessing
 
 # Actor Network------------------------------------------------------------------------------------------------------------
 class AC_Network():
-    def __init__(self,s_size,a_size,scope,trainer):
+    def __init__(self,s_size,a_size,scope,trainer_a,trainer_c):
         with tf.variable_scope(scope):
             #Input and visual encoding layers
             self.inputs = tf.placeholder(shape=[None,s_size],dtype=tf.float32)
@@ -41,19 +37,19 @@ class AC_Network():
             layer2 = 128
             layer3 = 128
             
-            hidden1 = slim.fully_connected(self.inputs,layer1,activation_fn=None,weights_initializer=tf.contrib.layers.xavier_initializer())
+            hidden1 = slim.fully_connected(self.inputs,layer1,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
             hidden2 = slim.fully_connected(tf.nn.dropout(hidden1,0.8),layer2,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
             hidden3 = slim.fully_connected(tf.nn.dropout(hidden2,0.8),layer3,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
             
-            hidden1_c = slim.fully_connected(self.inputs,layer1,activation_fn=None,weights_initializer=tf.contrib.layers.xavier_initializer())
+            hidden1_c = slim.fully_connected(self.inputs,layer1,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
             hidden2_c = slim.fully_connected(tf.nn.dropout(hidden1_c,0.8),layer2,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
-            hidden3_c = slim.fully_connected(tf.nn.dropot(hidden2_c,0.8),layer3,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
+            hidden3_c = slim.fully_connected(tf.nn.dropout(hidden2_c,0.8),layer3,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
     
             #Output layers for policy and value estimations
             mu = slim.fully_connected(hidden3,a_size,activation_fn=None,weights_initializer=tf.random_uniform_initializer(-3e-3,3e-3),biases_initializer=None)
             var = slim.fully_connected(hidden3,a_size,activation_fn=tf.nn.softplus,weights_initializer=tf.random_uniform_initializer(-3e-1,3e-1),biases_initializer=None)
-            self.normal_dist = tf.clip_by_value(tf.contrib.distributions.Normal(mu, tf.sqrt(var)),0.0,1.0)
-            self.policy = self.normal_dist.sample(1)
+            self.normal_dist = tf.contrib.distributions.Normal(mu, tf.sqrt(var))
+            self.policy = tf.clip_by_value(self.normal_dist.sample(1),0.0,1.0)
             #self.policy = tf.clip_by_value(self.normal_dist.sample(1), -1.,1.)
             self.value = slim.fully_connected(hidden3_c,1,
                 activation_fn=None,
@@ -92,28 +88,29 @@ class AC_Network():
                 
 # Learning to run Worker------------------------------------------------------------------------------------------------------------
 class Worker():
-    def __init__(self,name,s_size,a_size,trainer,model_path,global_episodes,is_training):
+    def __init__(self,name,s_size,a_size,trainer_a,trainer_c,model_path,global_episodes,is_training,vis):
         self.name = "worker_" + str(name)
         self.number = name        
         self.model_path = model_path
-        self.trainer = trainer
         self.global_episodes = global_episodes
         self.increment = self.global_episodes.assign_add(1)
         self.episode_rewards = []
         self.episode_lengths = []
         self.episode_mean_values = []
-        self.summary_writer = tf.summary.FileWriter("train_"+str(self.number))
+        if self.number in range(5):
+            self.summary_writer = tf.summary.FileWriter("train_"+str(self.number))
         self.is_training = is_training
+        self.vis = vis
 
         #Create the local copy of the network and the tensorflow op to copy global paramters to local network
-        self.local_AC = AC_Network(s_size,a_size,self.name,trainer)
+        self.local_AC = AC_Network(s_size,a_size,self.name,trainer_a,trainer_c)
 	    #self.local_AC_target = AC_Network(s_size,a_size,self.name+'/target',trainer,noisy)
         self.update_local_ops = update_target_graph('global',self.name)
 	    #self.update_local_ops_target = update_target_graph('global/target',self.name+'/target')
 	    #self.update_global_target = update_target_network(self.name,'global/target')           
         
 	    # Initialize a random process the Ornstein-Uhlenbeck process for action exploration
-        #self.exploration_noise = OUNoise(a_size)
+        self.exploration_noise = OUNoise(a_size)
         
     def train(self,rollout,sess,gamma,bootstrap_value):
         rollout = np.array(rollout)
@@ -162,11 +159,8 @@ class Worker():
             f.write(strftime("Starting time: %a, %d %b %Y %H:%M:%S\n", gmtime()))
 	
         explore = 2000
-
-        if self.name == 'worker_1':
-            self.env = ei(vis=False)#RunEnv(visualize=True)
-        else:
-            self.env = ei(vis=False)#RunEnv(visualize=False)
+        
+        self.env = ei(vis=self.vis)
 
         with sess.as_default(), sess.graph.as_default():
             #not_start_training_yet = True
@@ -206,7 +200,7 @@ class Worker():
                 while done == False:
                     #Take an action using probabilities from policy network output.
                     action,v = sess.run([self.local_AC.policy,self.local_AC.value,self.local_AC.state_out], 
-                                feed_dict={self.local_AC.inputs:[s])
+                                feed_dict={self.local_AC.inputs:[s]})
                     if not (episode_count % 10 == 0 and self.name == 'worker_1') and self.is_training:
                         if explore > 0: # > 0 turn on OU_noise
 	                    a = np.clip(action[0,0]+self.exploration_noise.noise()*noise_decay,0.0,1.0)
@@ -218,9 +212,10 @@ class Worker():
                     else: # test the agent
                         a = action[0,0]
 		    try:
+                        sleep(0.001)
                         ob,r,done,_ = self.env.step(a)
 		    except:
-			print(self.name+'ís dead due to recv()')
+			print(self.name+'is dead due to recv()')
 			return 0
                     '''
                     if self.name == 'worker_0':
@@ -273,7 +268,7 @@ class Worker():
                                     
                         
                 # Periodically save gifs of episodes, model parameters, and summary statistics.
-                if episode_count % 10 == 0 and episode_count != 0:
+                if episode_count % 10 == 0 and episode_count != 0 and self.number in range(5):
                     mean_reward = np.mean(self.episode_rewards[-5:])
                     mean_length = np.mean(self.episode_lengths[-5:])
                     mean_value = np.mean(self.episode_mean_values[-5:])
@@ -288,16 +283,16 @@ class Worker():
                     self.summary_writer.add_summary(summary, episode_count)
                     self.summary_writer.flush()
                     if self.name == 'worker_1':
-			            with open('result.txt','a') as f:
+			with open('result.txt','a') as f:
                             f.write("Episode "+str(episode_count)+" reward (testing): %.2f\n" % episode_reward)
                     if self.name == 'worker_0':
-			            with open('result.txt','a') as f:
-			                f.write("Episodes "+str(episode_count)+" mean reward (training): %.2f\n" % mean_reward)
+	                with open('result.txt','a') as f:
+                            f.write("Episodes "+str(episode_count)+" mean reward (training): %.2f\n" % mean_reward)
 
                         if episode_count % 50 == 0 and self.is_training:
                             saver.save(sess,self.model_path+'/model-'+str(episode_count)+'.cptk')
                             with open('result.txt','a') as f:
-			                    f.write("Saved Model at episode: "+str(episode_count)+"\n")
+                                f.write("Saved Model at episode: "+str(episode_count)+"\n")
                 if self.name == 'worker_0' and self.is_training:
                     sess.run(self.increment)
                         
@@ -307,7 +302,7 @@ class Worker():
                     wining_episode_count += 1
                     print('Worker_1 is stepping forward in Episode {}! Reward: {:.2f}. Total percentage of success is: {}%'.format(episode_count, episode_reward, int(wining_episode_count / episode_count * 100)))
                     with open('result.txt','a') as f:
-			            f.wirte('Worker_1 is stepping forward in Episode {}! Reward: {:.2f}. Total percentage of success is: {}%\n'.format(episode_count, episode_reward, int(wining_episode_count / episode_count * 100)))
+                        f.wirte('Worker_1 is stepping forward in Episode {}! Reward: {:.2f}. Total percentage of success is: {}%\n'.format(episode_count, episode_reward, int(wining_episode_count / episode_count * 100)))
         
         # All done Stop trail
         # Confirm exit
