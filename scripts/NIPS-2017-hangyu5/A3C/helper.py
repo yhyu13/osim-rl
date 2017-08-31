@@ -19,7 +19,7 @@ def update_target_graph(from_scope,to_scope):
     return op_holder
 
 # Normalize state 
-def process_frame(s):
+def normalize(s):
     s = np.asarray(s)
     s = (s-np.mean(s)) / np.std(s)
     return s

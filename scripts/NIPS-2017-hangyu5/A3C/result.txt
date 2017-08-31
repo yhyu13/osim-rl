@@ -1,1 +1,2 @@
-Starting time: Thu, 31 Aug 2017 03:42:11
+Starting time: Thu, 31 Aug 2017 04:14:28
+Episodes 10 mean reward (training): -0.22

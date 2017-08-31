@@ -46,8 +46,8 @@ class AC_Network():
             hidden3_c = slim.fully_connected(tf.nn.dropout(hidden2_c,0.8),layer3,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
     
             #Output layers for policy and value estimations
-            mu = slim.fully_connected(hidden3,a_size,activation_fn=None,weights_initializer=tf.random_uniform_initializer(-3e-3,3e-3),biases_initializer=None)
-            var = slim.fully_connected(hidden3,a_size,activation_fn=tf.nn.softplus,weights_initializer=tf.random_uniform_initializer(-3e-1,3e-1),biases_initializer=None)
+            mu = tf.clip_by_value(slim.fully_connected(hidden3,a_size,activation_fn=None,weights_initializer=tf.random_uniform_initializer(-3e-3,3e-3),biases_initializer=None),0.0,1.0)
+            var = slim.fully_connected(hidden3,a_size,activation_fn=tf.nn.softplus,weights_initializer=tf.random_uniform_initializer(-1-3e-1,-1+3e-1),biases_initializer=None)
             self.normal_dist = tf.contrib.distributions.Normal(mu, tf.sqrt(var))
             self.policy = tf.clip_by_value(self.normal_dist.sample(1),0.0,1.0)
             #self.policy = tf.clip_by_value(self.normal_dist.sample(1), -1.,1.)
@@ -64,7 +64,7 @@ class AC_Network():
 
                 #Loss functions
                 self.value_loss = tf.reduce_sum(tf.square(self.target_v - tf.reshape(self.value,[-1])))
-                self.log_prob = tf.reduce_sum(self.normal_dist.log_prob(self.actions))
+                self.log_prob = tf.reduce_sum(self.normal_dist.log_prob(tf.add(self.actions,0.05)))
                 self.entropy = self.normal_dist.entropy()  # encourage exploration
 
                 self.policy_loss = -tf.reduce_sum(self.log_prob*self.advantages) - 0.01 * self.entropy
@@ -77,8 +77,8 @@ class AC_Network():
                 self.gradients_c = tf.gradients(self.value_loss,local_vars)
                 
                 #self.var_norms = tf.global_norm(local_vars)
-                self.gradients_a,self.grad_norms_a = tf.clip_by_global_norm(self.gradients_a,5.0)
-                self.gradients_c,self.grad_norms_c = tf.clip_by_global_norm(self.gradients_c,1.0)
+                self.gradients_a,self.grad_norms_a = tf.clip_by_global_norm(self.gradients_a,0.5)
+                self.gradients_c,self.grad_norms_c = tf.clip_by_global_norm(self.gradients_c,0.5)
                 
                 #Apply local gradients to global network
                 #Comment these two lines out to stop training
@@ -88,7 +88,7 @@ class AC_Network():
                 
 # Learning to run Worker------------------------------------------------------------------------------------------------------------
 class Worker():
-    def __init__(self,name,s_size,a_size,trainer_a,trainer_c,model_path,global_episodes,is_training,vis):
+    def __init__(self,name,s_size,a_size,trainer_a,trainer_c,model_path,global_episodes,is_training,vis,noise):
         self.name = "worker_" + str(name)
         self.number = name        
         self.model_path = model_path
@@ -101,6 +101,7 @@ class Worker():
             self.summary_writer = tf.summary.FileWriter("train_"+str(self.number))
         self.is_training = is_training
         self.vis = vis
+        self.noise = noise
 
         #Create the local copy of the network and the tensorflow op to copy global paramters to local network
         self.local_AC = AC_Network(s_size,a_size,self.name,trainer_a,trainer_c)
@@ -138,14 +139,14 @@ class Worker():
             self.local_AC.inputs:np.vstack(observations),
             self.local_AC.actions:np.vstack(actions),
             self.local_AC.advantages:advantages}
-        l,v_l,p_l,e_l,g_n_a,g_n_c,_ = sess.run([self.local_AC.loss,self.local_AC.value_loss,
+        l,v_l,p_l,e_l,g_n_a,g_n_c,_,_ = sess.run([self.local_AC.loss,self.local_AC.value_loss,
             self.local_AC.policy_loss,
             self.local_AC.entropy,
             self.local_AC.grad_norms_a,
             self.local_AC.grad_norms_c,
-            self.local_AC.apply_grads],
+            self.local_AC.apply_grads_a,self.local_AC.apply_grads_c],
             feed_dict=feed_dict)
-        return l / len(rollout), v_l / len(rollout),p_l / len(rollout),e_l / len(rollout), g_n,v_n
+        return l / len(rollout), v_l / len(rollout),p_l / len(rollout),e_l / len(rollout), g_n_a,g_n_c
         
     def work(self,max_episode_length,gamma,sess,coord,saver):
         if self.is_training:
@@ -157,8 +158,11 @@ class Worker():
         print ("Starting worker " + str(self.number))
         with open('result.txt','w') as f:
             f.write(strftime("Starting time: %a, %d %b %Y %H:%M:%S\n", gmtime()))
-	
-        explore = 2000
+
+	if self.noise:
+            explore = 2000
+        else:
+            explore = -1
         
         self.env = ei(vis=self.vis)
 
@@ -169,7 +173,7 @@ class Worker():
                 if episode_count % 100 == 0:
                     if self.env != None:
                         del self.env
-                    else:
+                        sleep(0.001)
                         self.env = ei(vis=self.vis)#RunEnv(visualize=False)
                 self.setting=1
                         
@@ -199,7 +203,7 @@ class Worker():
                 chese=100
                 while done == False:
                     #Take an action using probabilities from policy network output.
-                    action,v = sess.run([self.local_AC.policy,self.local_AC.value,self.local_AC.state_out], 
+                    action,v = sess.run([self.local_AC.policy,self.local_AC.value], 
                                 feed_dict={self.local_AC.inputs:[s]})
                     if not (episode_count % 10 == 0 and self.name == 'worker_1') and self.is_training:
                         if explore > 0: # > 0 turn on OU_noise
@@ -247,9 +251,9 @@ class Worker():
                         if self.is_training:
                             v1 = sess.run(self.local_AC.value, 
                             feed_dict={self.local_AC.inputs:[s]})[0,0]
-                            l,v_l,p_l,e_l,g_n,v_n = self.train(episode_buffer,sess,gamma,v1)
+                            l,v_l,p_l,e_l,g_n_a,g_n_c = self.train(episode_buffer,sess,gamma,v1)
                             sess.run(self.update_local_ops)
-			    print(v_l,p_l,g_n,v_n)
+			    print(v_l,p_l,g_n_a,g_n_c)
                             episode_buffer = []
                      
                     if done == True:
@@ -262,7 +266,7 @@ class Worker():
                 # Update the network using the experience buffer at the end of the episode.
                 if len(episode_buffer) != 0:
                     if self.is_training:
-                        l,v_l,p_l,e_l,g_n,v_n = self.train(episode_buffer,sess,gamma,0.0)
+                        self.train(episode_buffer,sess,gamma,0.0)
                         #print(l,v_l,p_l,e_l,g_n,v_n)
 	                    #sess.run(self.update_global_target)
                                     
