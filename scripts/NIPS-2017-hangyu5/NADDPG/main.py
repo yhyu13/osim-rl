@@ -27,8 +27,8 @@ def main():
     explore = 2000
     batch_size = 32
     gamma = 0.995
-    n_step = 3
-    replay_buffer_capacity = 1e4
+    n_step = 50
+    replay_buffer_capacity = 10000
         
     tf.reset_default_graph()
         

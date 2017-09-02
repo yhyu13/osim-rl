@@ -8,6 +8,7 @@ import tensorflow as tf
 def lrelu(x, alpha=0.2):
   return tf.nn.relu(x) - alpha * tf.nn.relu(-x)
 
+# copy variables from another scope
 def update_graph(from_scope,to_scope):
     from_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, from_scope)
     to_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, to_scope)
@@ -17,7 +18,7 @@ def update_graph(from_scope,to_scope):
         op_holder.append(to_var.assign(from_var))
     return op_holder
 
-
+# update traget network (called by worker to manipulate global network)
 def update_target_network(network,target_network,TAU):
     network_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, network)
     target_network_vars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, target_network)
@@ -27,16 +28,24 @@ def update_target_network(network,target_network,TAU):
         target_update.append(target_network_var.assign(tf.add(tf.multiply(TAU,network_var),tf.multiply((1-TAU),target_network_var))))
     return target_update
 
+# Normalize each entry of a batch
+def normalize_batch(batch):
+    batch = np.asarray(batch,dtype=np.float32)
+    means = np.mean(batch,axis=1)
+    stds = np.std(batch,axis=1)
+    batch = (batch - means[:,np.newaxis]) / stds[:,np.newaxis]
+    return batch
+
 # Normalize state 
 def normalize(s):
-    s = np.asarray(s)
+    s = np.asarray(s,dtype=np.float32)
     s = (s-np.mean(s)) / np.std(s)
     return s
 
 # process state (the last 3 entires are obstacle info which should not be processed)
 def process_state(s,s1):
-    s = np.asarray(s)
-    s1 = np.asarray(s1)
+    s = np.asarray(s,dtype=np.float32)
+    s1 = np.asarray(s1,dtype=np.float32)
     s_14 = (s1[22:36]-s[22:36]) / 0.01
     s_3 = (s1[38:]-s[38:]) / 0.01 
     s = normalize(np.hstack((s1[:36],s_14,s1[36:],s_3)))
@@ -100,5 +109,5 @@ def get_n_step_pair(episode_buffer,n_step,gamma):
     r = 0
     for i in range(n_step):
       r += episode_buffer[-1-n_step+i][2]*gamma**i
-    return [s,action,r,s1,done]
+    return [s,action,np.maximum(r,-.1),s1,done]
 

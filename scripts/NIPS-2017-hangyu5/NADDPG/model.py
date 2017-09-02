@@ -143,7 +143,7 @@ class Worker:
            self.update_local_ops_actor_target = update_graph('global/actor/target',self.name+'/actor/target')
            self.update_local_ops_critic_target = update_graph('global/critic/target',self.name+'/critic/target')
            self.update_global_actor_target = update_target_network('global/actor','global/actor/target',1e-4)
-           self.update_global_critic_target = update_target_network('global/critic','global/critic/target',1.1e-4)
+           self.update_global_critic_target = update_target_network('global/critic','global/critic/target',1e-4)
 
     def start(self):
         self.env = ei(vis=self.vis)
@@ -166,26 +166,26 @@ class Worker:
         done_batch = np.asarray([data[4] for data in minibatch])
 
         # for action_dim = 1
-        action_batch = np.resize(action_batch,[BATCH_SIZE,self.action_dim])
+        action_batch = normalize_batch(np.resize(action_batch,[BATCH_SIZE,self.action_dim]))
         # Calculate y_batch
-        next_action_batch = self.actor_network.target_actions(self.sess,next_state_batch)
+        next_action_batch = normalize_batch(self.actor_network.target_actions(self.sess,next_state_batch))
         q_value_batch = self.critic_network.target_q(self.sess,next_state_batch,next_action_batch)
         done_mask = [0 if done else 1 for done in done_batch]
         y_batch = reward_batch + self.gamma**self.n_step * q_value_batch * done_mask # notice gamma**n_step
         y_batch = np.resize(y_batch,[BATCH_SIZE,1])
         # Update critic by minimizing the loss L
         _,abs_errors,loss,a,b,norm = self.critic_network.train(self.sess,y_batch,state_batch,action_batch,ISWeights)
-        #print(a)
-        #print(b)
-        #print(loss)
-        #print(norm)
+        print(a)
+        print(b)
+        print(loss)
+        print(norm)
 
             # Update the actor policy using the sampled gradient:
-        action_batch_for_gradients = self.actor_network.actions(self.sess,state_batch)
+        action_batch_for_gradients = normalize_batch(self.actor_network.actions(self.sess,state_batch))
         q_gradient_batch = self.critic_network.gradients(self.sess,state_batch,action_batch_for_gradients)
 
         _,norm = self.actor_network.train(self.sess,q_gradient_batch,state_batch)
-        #print(norm)
+        print(norm)
             # Update the target networks
         self.sess.run(self.update_global_actor_target)
         self.sess.run(self.update_global_critic_target)
@@ -241,8 +241,8 @@ class Worker:
                 returns = []
                 episode_buffer = []
                 episode_reward = 0
-                self.noise_decay = np.cos(self.explore / 20. * np.pi)
-                print(self.noise_decay)
+                self.noise_decay = np.clip(abs(np.cos(self.explore / 20. * np.pi)),0.68,1.0)
+                #print(self.noise_decay)
                 self.explore -= 1
 
                 #update local ops
@@ -277,6 +277,15 @@ class Worker:
                 
 		# Iterate through environment
                 for step in xrange(1000):
+                    if self.name == "worker_1" and episode_count > 50 and self.training:
+			pause_perceive=True
+			#print(self.name+'is training')
+                        #self.train()
+                        self.train()
+			pause_perceive=False
+			sleep(0.05)
+			continue
+		    
                     if self.explore>0 and self.training:
                         action = np.clip(self.noise_action(s),-1e-2,1.0-1e-2) # change Aug20
                     else:
@@ -298,14 +307,6 @@ class Worker:
                         if not pause_perceive:
                             transition = get_n_step_pair(episode_buffer,self.n_step,self.gamma) # call from helper.py
                             self.perceive(transition)
-                        
-                    if self.name == "worker_1" and episode_count > 5 and self.training:
-			pause_perceive=True
-			#print(self.name+'is training')
-                        self.train()
-                        self.train()
-			pause_perceive=False
-
                     s = s1
                     s1 = s2
                     episode_reward += reward

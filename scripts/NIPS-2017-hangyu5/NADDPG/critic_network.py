@@ -5,7 +5,7 @@ import math
 from helper import *
 
 
-LEARNING_RATE = 1.1e-4
+LEARNING_RATE = 1e-3
 TAU = 0.001
 L2 = 0.01
 
@@ -48,13 +48,12 @@ class CriticNetwork:
             state_input = tf.placeholder("float",[None,state_dim])
             action_input = tf.placeholder("float",[None,action_dim])
 
-            layer1 = slim.fully_connected(state_input,256,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
-            layer2 = slim.fully_connected(tf.nn.dropout(layer1,0.5),256,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
-            layer3 = slim.fully_connected(tf.nn.dropout(layer2,0.5),128,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
-            layer4 = slim.fully_connected(action_input,128,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
-            layer5 = slim.fully_connected(tf.nn.dropout(layer4,0.5),128,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
-            layer6 = slim.fully_connected(tf.nn.dropout(layer5,0.5),64,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
-            q_value_output = slim.fully_connected(slim.flatten(tf.concat([layer3,layer6],axis=1)),1,activation_fn=None,weights_initializer=tf.random_uniform_initializer(-3e-3,3e-3))
+            layer1 = slim.fully_connected(state_input,400,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
+            layer2 = slim.fully_connected(tf.nn.dropout(layer1,0.8),300,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
+            layer3 = slim.fully_connected(tf.nn.dropout(layer2,0.8),200,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
+            layer4 = slim.fully_connected(action_input,200,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
+            layer5 = tf.nn.elu(tf.nn.dropout(layer4,0.8))
+            q_value_output = slim.fully_connected(slim.flatten(tf.concat([layer3,layer5],axis=1)),1,activation_fn=None,weights_initializer=tf.random_uniform_initializer(-3e-3,3e-3))
             net = [v for v in tf.trainable_variables() if scope in v.name]
 
             return state_input,action_input,q_value_output,net
