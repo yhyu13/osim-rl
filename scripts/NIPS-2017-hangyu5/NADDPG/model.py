@@ -175,17 +175,17 @@ class Worker:
         y_batch = np.resize(y_batch,[BATCH_SIZE,1])
         # Update critic by minimizing the loss L
         _,abs_errors,loss,a,b,norm = self.critic_network.train(self.sess,y_batch,state_batch,action_batch,ISWeights)
-        print(a)
-        print(b)
-        print(loss)
-        print(norm)
+        #print(a)
+        #print(b)
+        #print(loss)
+        #print(norm)
 
             # Update the actor policy using the sampled gradient:
-        action_batch_for_gradients = normalize_batch(self.actor_network.actions(self.sess,state_batch))
-        q_gradient_batch = self.critic_network.gradients(self.sess,state_batch,action_batch_for_gradients)
-
+        #action_batch_for_gradients = normalize_batch(self.actor_network.actions(self.sess,state_batch))
+        #q_gradient_batch = self.critic_network.gradients(self.sess,state_batch,action_batch_for_gradients)
+	q_gradient_batch = self.critic_network.gradients(self.sess,state_batch,action_batch)
         _,norm = self.actor_network.train(self.sess,q_gradient_batch,state_batch)
-        print(norm)
+        #print(norm)
             # Update the target networks
         self.sess.run(self.update_global_actor_target)
         self.sess.run(self.update_global_critic_target)
@@ -278,11 +278,11 @@ class Worker:
 		# Iterate through environment
                 for step in xrange(1000):
                     if self.name == "worker_1" and episode_count > 50 and self.training:
-			pause_perceive=True
+			#pause_perceive=True
 			#print(self.name+'is training')
                         #self.train()
                         self.train()
-			pause_perceive=False
+			#pause_perceive=False
 			sleep(0.05)
 			continue
 		    
