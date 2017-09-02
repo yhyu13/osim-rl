@@ -37,8 +37,8 @@ class ActorNetwork:
 
            state_input = tf.placeholder("float",[None,state_dim])
            layer1 = slim.fully_connected(state_input,256,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
-           layer2 = slim.fully_connected(tf.nn.dropout(layer1,0.8),128,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
-           layer3 = slim.fully_connected(tf.nn.dropout(layer2,0.8),128,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
+           layer2 = slim.fully_connected(tf.nn.dropout(layer1,0.5),256,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
+           layer3 = slim.fully_connected(tf.nn.dropout(layer2,0.5),128,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
            action_output = tf.clip_by_value(slim.fully_connected(layer3,action_dim,activation_fn=None,weights_initializer=tf.random_uniform_initializer(-3e-3,3e-3)),-1e-2,1.0-1e-2)
            net = [v for v in tf.trainable_variables() if scope in v.name]
 

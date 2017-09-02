@@ -35,7 +35,7 @@ class CriticNetwork:
             local_vars_critic = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
             self.optimizer = tf.train.AdamOptimizer(LEARNING_RATE)
             self.parameters_gradients,_ = zip(*self.optimizer.compute_gradients(self.cost,local_vars_critic))
-            self.parameters_graidents,self.global_norm = tf.clip_by_global_norm(self.parameters_gradients,1.0)
+            self.parameters_graidents,self.global_norm = tf.clip_by_global_norm(self.parameters_gradients,5.0)
             self.optimizer = self.optimizer.apply_gradients(zip(self.parameters_gradients,global_vars_critic))
             self.action_gradients = tf.gradients(self.q_value_output,self.action_input)
             sess.run(tf.global_variables_initializer())
@@ -49,11 +49,11 @@ class CriticNetwork:
             action_input = tf.placeholder("float",[None,action_dim])
 
             layer1 = slim.fully_connected(state_input,256,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
-            layer2 = slim.fully_connected(tf.nn.dropout(layer1,0.8),128,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
-            layer3 = slim.fully_connected(tf.nn.dropout(layer2,0.8),128,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
+            layer2 = slim.fully_connected(tf.nn.dropout(layer1,0.5),256,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
+            layer3 = slim.fully_connected(tf.nn.dropout(layer2,0.5),128,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
             layer4 = slim.fully_connected(action_input,128,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
-            layer5 = slim.fully_connected(tf.nn.dropout(layer4,0.8),64,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
-            layer6 = slim.fully_connected(tf.nn.dropout(layer5,0.8),64,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
+            layer5 = slim.fully_connected(tf.nn.dropout(layer4,0.5),128,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
+            layer6 = slim.fully_connected(tf.nn.dropout(layer5,0.5),64,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
             q_value_output = slim.fully_connected(slim.flatten(tf.concat([layer3,layer6],axis=1)),1,activation_fn=None,weights_initializer=tf.random_uniform_initializer(-3e-3,3e-3))
             net = [v for v in tf.trainable_variables() if scope in v.name]
 
