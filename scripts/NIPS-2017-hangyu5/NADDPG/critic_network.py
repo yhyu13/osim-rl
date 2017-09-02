@@ -35,7 +35,7 @@ class CriticNetwork:
             local_vars_critic = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope)
             self.optimizer = tf.train.AdamOptimizer(LEARNING_RATE)
             self.parameters_gradients,_ = zip(*self.optimizer.compute_gradients(self.cost,local_vars_critic))
-            self.parameters_graidents,self.global_norm = tf.clip_by_global_norm(self.parameters_gradients,5.0)
+            self.parameters_graidents,self.global_norm = tf.clip_by_global_norm(self.parameters_gradients,1.0)
             self.optimizer = self.optimizer.apply_gradients(zip(self.parameters_gradients,global_vars_critic))
             self.action_gradients = tf.gradients(self.q_value_output,self.action_input)
             sess.run(tf.global_variables_initializer())
@@ -50,10 +50,9 @@ class CriticNetwork:
 
             layer1 = slim.fully_connected(state_input,400,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
             layer2 = slim.fully_connected(tf.nn.dropout(layer1,0.8),300,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
-            layer3 = slim.fully_connected(tf.nn.dropout(layer2,0.8),200,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
-            layer4 = slim.fully_connected(action_input,200,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
-            layer5 = tf.nn.elu(tf.nn.dropout(layer4,0.8))
-            q_value_output = slim.fully_connected(slim.flatten(tf.concat([layer3,layer5],axis=1)),1,activation_fn=None,weights_initializer=tf.random_uniform_initializer(-3e-3,3e-3))
+            layer3 = slim.fully_connected(action_input,100,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
+            layer4 = tf.nn.elu(tf.nn.dropout(layer3,0.8))
+            q_value_output = slim.fully_connected(slim.flatten(tf.concat([layer2,layer4],axis=1)),1,activation_fn=None,weights_initializer=tf.random_uniform_initializer(-3e-3,3e-3))
             net = [v for v in tf.trainable_variables() if scope in v.name]
 
             return state_input,action_input,q_value_output,net

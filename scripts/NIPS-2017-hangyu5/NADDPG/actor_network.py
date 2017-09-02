@@ -6,7 +6,7 @@ from helper import *
 
 
 # Hyper Parameters
-LEARNING_RATE = 5e-4
+LEARNING_RATE = 1e-3
 TAU = 0.001
 
 class ActorNetwork:
@@ -23,7 +23,7 @@ class ActorNetwork:
         # define training rules
         if scope != 'global/actor':
 	    self.q_gradient_input = tf.placeholder("float",[None,self.action_dim])
-	    self.parameters_gradients,self.global_norm = tf.clip_by_global_norm(tf.gradients(self.action_output,self.net,tf.add(-self.q_gradient_input,1e-2)),5.0)
+	    self.parameters_gradients,self.global_norm = tf.clip_by_global_norm(tf.gradients(self.action_output,self.net,-self.q_gradient_input*100),5.0)
 	    global_vars_actor = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'global/actor')
 	    self.optimizer = tf.train.AdamOptimizer(LEARNING_RATE).apply_gradients(zip(self.parameters_gradients,global_vars_actor))
 	    sess.run(tf.global_variables_initializer())
@@ -38,8 +38,7 @@ class ActorNetwork:
            state_input = tf.placeholder("float",[None,state_dim])
            layer1 = slim.fully_connected(state_input,400,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
            layer2 = slim.fully_connected(tf.nn.dropout(layer1,0.8),300,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
-           layer3 = slim.fully_connected(tf.nn.dropout(layer2,0.8),200,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
-           action_output = tf.clip_by_value(slim.fully_connected(layer3,action_dim,activation_fn=None,weights_initializer=tf.random_uniform_initializer(-3e-3,3e-3)),-1e-2,1.0-1e-2)
+           action_output = slim.fully_connected(tf.nn.dropout(layer2,0.8),action_dim,activation_fn=tf.sigmoid,weights_initializer=tf.random_uniform_initializer(-3e-3,3e-3))
            net = [v for v in tf.trainable_variables() if scope in v.name]
 
            return state_input,action_output,net

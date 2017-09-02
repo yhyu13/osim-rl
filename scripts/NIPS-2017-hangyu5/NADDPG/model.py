@@ -142,8 +142,8 @@ class Worker:
            self.update_local_ops_critic = update_graph('global/critic',self.name+'/critic')
            self.update_local_ops_actor_target = update_graph('global/actor/target',self.name+'/actor/target')
            self.update_local_ops_critic_target = update_graph('global/critic/target',self.name+'/critic/target')
-           self.update_global_actor_target = update_target_network('global/actor','global/actor/target',1e-4)
-           self.update_global_critic_target = update_target_network('global/critic','global/critic/target',1e-4)
+           self.update_global_actor_target = update_target_network('global/actor','global/actor/target',1e-3)
+           self.update_global_critic_target = update_target_network('global/critic','global/critic/target',1e-3)
 
     def start(self):
         self.env = ei(vis=self.vis)
@@ -181,9 +181,9 @@ class Worker:
         #print(norm)
 
             # Update the actor policy using the sampled gradient:
-        #action_batch_for_gradients = normalize_batch(self.actor_network.actions(self.sess,state_batch))
-        #q_gradient_batch = self.critic_network.gradients(self.sess,state_batch,action_batch_for_gradients)
-	q_gradient_batch = self.critic_network.gradients(self.sess,state_batch,action_batch)
+        action_batch_for_gradients = normalize_batch(self.actor_network.actions(self.sess,state_batch))
+        q_gradient_batch = self.critic_network.gradients(self.sess,state_batch,action_batch_for_gradients)
+	#q_gradient_batch = self.critic_network.gradients(self.sess,state_batch,action_batch)
         _,norm = self.actor_network.train(self.sess,q_gradient_batch,state_batch)
         #print(norm)
             # Update the target networks
@@ -241,7 +241,7 @@ class Worker:
                 returns = []
                 episode_buffer = []
                 episode_reward = 0
-                self.noise_decay = np.clip(abs(np.cos(self.explore / 20. * np.pi)),0.68,1.0)
+                self.noise_decay = np.clip(abs(np.cos(self.explore / 20. * np.pi)),0.33,1.0)
                 #print(self.noise_decay)
                 self.explore -= 1
 
@@ -277,17 +277,17 @@ class Worker:
                 
 		# Iterate through environment
                 for step in xrange(1000):
-                    if self.name == "worker_1" and episode_count > 50 and self.training:
+                    if self.name == "worker_1" and episode_count > 100 and self.training:
 			#pause_perceive=True
 			#print(self.name+'is training')
                         #self.train()
                         self.train()
 			#pause_perceive=False
-			sleep(0.05)
+			sleep(0.1)
 			continue
 		    
                     if self.explore>0 and self.training:
-                        action = np.clip(self.noise_action(s),-1e-2,1.0-1e-2) # change Aug20
+                        action = np.clip(self.noise_action(s),1e-2,1.0-1e-2) # change Aug20
                     else:
                         action = self.action(s)
                     try:
@@ -321,7 +321,7 @@ class Worker:
 
                 # Testing:
                 if self.name == 'worker_2' and episode_count % 10 == 0 and episode_count > 1: # change Aug19
-                    if episode_count % 50 == 0 and not self.vis:
+                    if episode_count % 100 == 0 and not self.vis:
                         self.save_model(saver, episode_count)
                	    total_return = 0
                     for i in xrange(3):
