@@ -92,24 +92,26 @@ class ReplayBuffer(object):  # stored as ( s, a, r, s_ ) in SumTree
         self.tree.add(max_p, transition)   # set the max p for new p
 
     def sample(self, n):
-        b_idx, b_memory, ISWeights = [],[],[]
+        b_idx, b_memory= [],[]
+        #ISWeights = []
         pri_seg = self.tree.total_p / n       # priority segment
         self.beta = np.min([1., self.beta + self.beta_increment_per_sampling])  # max = 1
 
-        min_prob = np.min(self.tree.tree[-self.tree.capacity:]) / self.tree.total_p + 1e-3    # for later calculate ISweight
+        min_prob = np.min(self.tree.tree[-self.tree.capacity:]) / self.tree.total_p     # for later calculate ISweight
         for i in range(n):
             a, b = pri_seg * i, pri_seg * (i + 1)
             v = np.random.uniform(a, b)
             idx, p, data = self.tree.get_leaf(v)
             # data is initialized to be zero, prevent empty memory crush
             if data != 0:
-                prob = p / self.tree.total_p + 1e-3
-                ISWeights.append([np.power(prob/min_prob, -self.beta)])
+                prob = p / self.tree.total_p
+                #ISWeights[i, 0] = np.power(prob/min_prob, -self.beta)
                 b_idx.append(idx)
                 b_memory.append(data)
-        return b_idx, b_memory, ISWeights
+        return b_idx, b_memory#, ISWeights
 
     def batch_update(self, tree_idx, abs_errors):
+        abs_errors = np.asarray(abs_errors)
         abs_errors += self.epsilon  # convert to abs and avoid 0
         clipped_errors = np.minimum(abs_errors, self.abs_err_upper)
         ps = np.power(clipped_errors, self.alpha)

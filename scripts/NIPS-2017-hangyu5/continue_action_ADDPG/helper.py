@@ -94,11 +94,8 @@ def updateTarget(op_holder,sess):
     else:
         print("Target Set Failed")
         
-def get_n_step_pair(episode_buffer,n_step,gamma):
-    _,_,_,s1,done = episode_buffer[-1]
-    s,action,_,_,_ = episode_buffer[-1-n_step]
-    r = 0
-    for i in range(n_step):
-      r += episode_buffer[-1-n_step+i][2]*gamma**i
-    return [s,action,r,s1,done]
+
+    
+
+
 

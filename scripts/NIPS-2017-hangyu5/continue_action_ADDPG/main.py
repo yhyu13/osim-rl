@@ -25,9 +25,8 @@ def main():
 	
     # hyperparameters
     explore = 2000
-    batch_size = 64
+    batch_size = 32
     gamma = 0.995
-    n_step = 30
     replay_buffer_capacity = 5e3
         
     tf.reset_default_graph()
@@ -42,7 +41,7 @@ def main():
 	        # Create worker classes
 	        replaybuffer = ReplayBuffer(int(num_workers*replay_buffer_capacity)) # workers share a single replay buffer
 	        for i in range(num_workers):
-	            worker = Worker(sess,i,model_path,global_episodes,explore,training,vis,replaybuffer,batch_size,gamma,int(replay_buffer_capacity),n_step)
+	            worker = Worker(sess,i,model_path,global_episodes,explore,training,vis,replaybuffer,batch_size,gamma,int(replay_buffer_capacity))
 		    workers.append(worker)
 	        saver = tf.train.Saver()
 

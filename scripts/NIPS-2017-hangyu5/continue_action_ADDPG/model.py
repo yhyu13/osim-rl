@@ -106,7 +106,7 @@ pause_perceive = False
 
 class Worker:
     """docstring for DDPG"""
-    def __init__(self,sess,number,model_path,global_episodes,explore,training,vis,ReplayBuffer,batch_size,gamma,replay_buffer_size,n_step):
+    def __init__(self,sess,number,model_path,global_episodes,explore,training,vis,ReplayBuffer,batch_size,gamma,replay_buffer_size):
         self.name = 'worker_' + str(number) # name for uploading results
         self.number = number
         # Randomly initialize actor network and critic network
@@ -124,7 +124,6 @@ class Worker:
         self.batch_size = batch_size
         self.gamma = gamma
 	self.replay_buffer_size = replay_buffer_size
-	self.n_step = n_step
 	self.worker_total_steps = 0
 	# share replay buffer
         self.replay_buffer = ReplayBuffer
@@ -157,44 +156,52 @@ class Worker:
     def train(self):
         # print "train step",self.time_step
         # Sample random minibatchs of N best plays from replay buffer
-        tree_idx, minibatch,ISWeights = self.replay_buffer.sample(self.batch_size)
-        BATCH_SIZE = len(minibatch)
-        state_batch = np.asarray([data[0] for data in minibatch])
-        action_batch = np.asarray([data[1] for data in minibatch])
-        reward_batch = np.asarray([data[2] for data in minibatch])
-        next_state_batch = np.asarray([data[3] for data in minibatch])
-        done_batch = np.asarray([data[4] for data in minibatch])
+        tree_idx, minibatches = self.replay_buffer.sample(self.batch_size)
+        abs_errors_list = []
+	
+	for minibatch in minibatches:
+            BATCH_SIZE = len(minibatch)
+            state_batch = np.asarray([data[0] for data in minibatch])
+            
+            action_batch = np.asarray([data[1] for data in minibatch])
+            reward_batch = np.asarray([data[2] for data in minibatch])
 
-        # for action_dim = 1
-        action_batch = np.resize(action_batch,[BATCH_SIZE,self.action_dim])
-        # Calculate y_batch
-        next_action_batch = self.actor_network.target_actions(self.sess,next_state_batch)
-        q_value_batch = self.critic_network.target_q(self.sess,next_state_batch,next_action_batch)
-        done_mask = [0 if done else 1 for done in done_batch]
-        y_batch = reward_batch + self.gamma**self.n_step * q_value_batch * done_mask # notice gamma**n_step
-        y_batch = np.resize(y_batch,[BATCH_SIZE,1])
-        # Update critic by minimizing the loss L
-        _,abs_errors,loss,a,b,norm = self.critic_network.train(self.sess,y_batch,state_batch,action_batch,ISWeights)
+            next_state_batch = np.asarray([data[3] for data in minibatch])
+            done_batch = np.asarray([data[4] for data in minibatch])
+
+            # for action_dim = 1
+            action_batch = np.resize(action_batch,[BATCH_SIZE,self.action_dim])
+
+            # Calculate y_batch
+
+            next_action_batch = self.actor_network.target_actions(self.sess,next_state_batch)
+            q_value_batch = self.critic_network.target_q(self.sess,next_state_batch,next_action_batch)
+            done_mask = [0 if done else 1 for done in done_batch]    
+            y_batch = reward_batch + self.gamma * q_value_batch * done_mask
+            y_batch = np.resize(y_batch,[BATCH_SIZE,1])
+            # Update critic by minimizing the loss L
+            _,abs_errors,loss,a,b,norm = self.critic_network.train(self.sess,y_batch,state_batch,action_batch)
             #print(a)
             #print(b)
             #print(loss)
             #print(norm)
+            abs_errors_list.append(abs_errors)
 
             # Update the actor policy using the sampled gradient:
-        action_batch_for_gradients = self.actor_network.actions(self.sess,state_batch)
-        q_gradient_batch = self.critic_network.gradients(self.sess,state_batch,action_batch_for_gradients)
+            action_batch_for_gradients = self.actor_network.actions(self.sess,state_batch)
+            q_gradient_batch = self.critic_network.gradients(self.sess,state_batch,action_batch_for_gradients)
 
-        _,norm = self.actor_network.train(self.sess,q_gradient_batch,state_batch)
+            _,norm = self.actor_network.train(self.sess,q_gradient_batch,state_batch)
             #print(norm)
             # Update the target networks
-        self.sess.run(self.update_global_actor_target)
-        self.sess.run(self.update_global_critic_target)
-        self.sess.run(self.update_local_ops_actor)
-        self.sess.run(self.update_local_ops_critic)
-        self.sess.run(self.update_local_ops_actor_target)
-        self.sess.run(self.update_local_ops_critic_target)
-        # update SumTree priorities
-        self.replay_buffer.batch_update(tree_idx, abs_errors)
+            self.sess.run(self.update_global_actor_target)
+            self.sess.run(self.update_global_critic_target)
+            self.sess.run(self.update_local_ops_actor)
+            self.sess.run(self.update_local_ops_critic)
+            self.sess.run(self.update_local_ops_actor_target)
+            self.sess.run(self.update_local_ops_critic_target)
+            
+        self.replay_buffer.batch_update(tree_idx, abs_errors_list)
 
     def save_model(self, saver, episode):
         saver.save(self.sess, self.model_path + "/model-" + str(episode) + ".ckpt")
@@ -208,9 +215,9 @@ class Worker:
         action = self.actor_network.action(self.sess,state)
         return action
 
-    def perceive(self,transition):
+    def perceive(self,minibatch,done):
         # Store transition (s_t,a_t,r_t,s_{t+1}) in replay buffer
-        self.replay_buffer.store(transition)
+        self.replay_buffer.store(minibatch)
         self.worker_total_steps += 1
             
     def work(self,coord,saver):
@@ -234,14 +241,14 @@ class Worker:
         with self.sess.as_default(), self.sess.graph.as_default():
             while not coord.should_stop():
             
-                #if episode_count % 2000 == 0 and episode_count>1: # change Sep1st, no memory leak experienced on my machine
-                    #self.restart()
+                if episode_count % 200 == 0 and episode_count>1: # change Aug24 restart RunEnv every 50 eps
+                    self.restart()
 		
-		#initialize some variables                   
+		#initialize some variables
+		minibatch_buffer = []                    
                 returns = []
-                episode_buffer = []
                 episode_reward = 0
-                self.noise_decay = np.cos(self.explore / 10. * np.pi)
+                self.noise_decay = np.maximum(np.cos(self.explore / 10. * np.pi),0.0)
                 #print(self.noise_decay)
                 self.explore -= 1
 
@@ -276,8 +283,13 @@ class Worker:
                     print("episode:{}".format(str(episode_count)+' '+self.name))
                 
 		# Iterate through environment
+                chese = 100#int(np.random.rand()*50) # change Aug 25 >50 == turn off engineered action
                 for step in xrange(1000):
-                    if self.explore>0 and self.training:
+                    if chese < 70:
+                        action=engineered_action(seed)
+                        action = np.clip(action+self.exploration_noise.noise()*0.0,0.0,1.0)
+                        chese += 1
+                    elif self.explore>0 and self.training:
                         action = np.clip(self.noise_action(s),-1e-2,1.0-1e-2) # change Aug20
                     else:
                         action = self.action(s)
@@ -293,13 +305,13 @@ class Worker:
                     #if chese >=50: # change Aug24 do not include engineered action in the buffer
                         #self.perceive(s,action,reward,s1,done)
 		    #sleep(0.001) # THREAD_DELAY
-		    episode_buffer.append([s,action,reward*10,s1,done])
-                    if step > self.n_step:
+		    minibatch_buffer.append([s,action,reward*20,s1,done])
+                    if step % 30 == 0 and step != 0:
                         if not pause_perceive:
-                            transition = get_n_step_pair(episode_buffer,self.n_step,self.gamma) # call from helper.py
-                            self.perceive(transition)
+                            self.perceive(minibatch_buffer,done)
+			minibatch_buffer = []
                         
-                    if self.name == "worker_1" and episode_count > int(self.replay_buffer_size/100) and self.training:
+                    if self.name == "worker_1" and self.worker_total_steps > self.replay_buffer_size and self.training:
 			pause_perceive=True
 			#print(self.name+'is training')
                         self.train()
