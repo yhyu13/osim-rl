@@ -112,6 +112,6 @@ def n_step_transition(episode_buffer,n_step,gamma):
     r = 0
     for i in range(n_step):
       r += episode_buffer[-1-n_step+i][2]*gamma**i
-    return [s,action,np.maximum(r,-.1),s1,done]
+    return [s,action,np.maximum(r,0.0),s1,done]
 
 

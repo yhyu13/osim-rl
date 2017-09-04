@@ -96,7 +96,7 @@ class ei: # Environment Instance
 # DDPG Worker
 ###############################################
 pause_perceive = False
-replay_buffer = ReplayBuffer(200e3)
+replay_buffer = ReplayBuffer(500e3)
 
 class Worker:
     """docstring for DDPG"""
@@ -180,10 +180,10 @@ class Worker:
         y_batch = np.resize(y_batch,[BATCH_SIZE,1])
         # Update critic by minimizing the loss L
         _,loss,a,b,norm = self.critic_network.train(self.sess,y_batch,state_batch,action_batch)
-        print(a)
-        print(b)
-        print(loss)
-        print(norm)
+        #print(a)
+        #print(b)
+        #print(loss)
+        #print(norm)
 
         # Update the actor policy using the sampled gradient:
         action_batch_for_gradients = self.actor_network.actions(self.sess,state_batch)
@@ -201,7 +201,7 @@ class Worker:
                     q_gradient_batch[i,j] *= a
                     
         _,norm = self.actor_network.train(self.sess,q_gradient_batch,state_batch)
-        print(norm)
+        #print(norm)
         # Update the target networks
         #self.actor_network.update_target(self.sess)
         #self.critic_network.update_target(self.sess)
@@ -277,22 +277,23 @@ class Worker:
                 # Train
                 action = ea
                 for step in xrange(1000):
-                    if self.name == "worker_1" and replay_buffer.count() > 200 and self.training:
+                    if self.name == "worker_1" and replay_buffer.count() > 200e3 and self.training:
 			#pause_perceive=True
 			#print(self.name+'is training')
                         self.train()
                         self.train()
 			#pause_perceive=False
-			if replay_buffer.count() >= 200e3:
+			if replay_buffer.count() >= 500e3:
                             pause_perceive = True
                             replay_buffer.erase() # erase old experience every time the model is saved
                             pause_perceive = False
+			    break
 			continue
 
                     if self.explore>0 and self.training:
                         action = np.clip(self.noise_action(action),1e-3,1.-1e-3) # change Aug20
                     if step % self.n_step == 0:
-                        action = np,clip(self.action(s),1e-3,1.-1e-3)
+                        action = np.clip(self.action(s),1e-3,1.-1e-3)
 
                     try:
                         s2,reward,done,_ = self.env.step(action)
@@ -307,8 +308,8 @@ class Worker:
                     if s1[2] > 0.75:
                         height_reward = 1.
                     else:
-                        height_reward = -1.
-                    episode_buffer.append([s,action,(reward+s1[18]+s1[20])/self.n_step*(step/50)*height_reward,s1,done])
+                        height_reward = 0.1.
+                    episode_buffer.append([s,action,(s1[18]*2+s1[20])/self.n_step*(step/10)*height_reward,s1,done])
                     if step > self.n_step and not pause_perceive:
                         transition = n_step_transition(episode_buffer,self.n_step,self.gamma)
                         self.perceive(transition)
