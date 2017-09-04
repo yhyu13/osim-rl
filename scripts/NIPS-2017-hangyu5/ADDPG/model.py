@@ -96,10 +96,11 @@ class ei: # Environment Instance
 # DDPG Worker
 ###############################################
 pause_perceive = False
+replay_buffer = ReplayBuffer(200e3)
 
 class Worker:
     """docstring for DDPG"""
-    def __init__(self,sess,number,model_path,global_episodes,explore,training,vis,ReplayBuffer,batch_size,gamma,replay_buffer_size):
+    def __init__(self,sess,number,model_path,global_episodes,explore,training,vis,batch_size,gamma,n_step):
         self.name = 'worker_' + str(number) # name for uploading results
         self.number = number
         # Randomly initialize actor network and critic network
@@ -117,25 +118,23 @@ class Worker:
         self.total_steps = 0 # for ReplayBuffer to count
         self.batch_size = batch_size
         self.gamma = gamma
-	self.replay_buffer_size = replay_buffer_size
+        self.n_step = n_step
 
         self.actor_network = ActorNetwork(self.sess,self.state_dim,self.action_dim,self.name+'/actor')
-        self.actor_network.update_target(self.sess)
-        self.critic_network = CriticNetwork(self.sess,self.state_dim,self.action_dim,self.name+'/critic')
-        self.critic_network.update_target(self.sess)
-
-        # initialize replay buffer
-        self.replay_buffer = ReplayBuffer
-
+        self.update_local_ops_actor = update_graph('global/actor',self.name+'/actor')
+        
         # Initialize a random process the Ornstein-Uhlenbeck process for action exploration
         self.exploration_noise = OUNoise(self.action_dim)
 
-        self.update_local_ops_actor = update_graph('global/actor',self.name+'/actor')
-        self.update_local_ops_critic = update_graph('global/critic',self.name+'/critic')
-        self.update_local_ops_actor_target = update_graph('global/actor/target',self.name+'/actor/target')
-        self.update_local_ops_critic_target = update_graph('global/critic/target',self.name+'/critic/target')
-        self.update_global_actor_target = update_target_network(self.name+'/actor/target','global/actor/target',1e-4)
-        self.update_global_critic_target = update_target_network(self.name+'/critic/target','global/critic/target',1e-4)
+        if self.name == 'worker_1':
+            self.critic_network = CriticNetwork(self.sess,self.state_dim,self.action_dim,self.name+'/critic')
+            self.actor_network.update_target(sess)
+            self.critic_network.update_target(sess)
+            self.update_local_ops_critic = update_graph('global/critic',self.name+'/critic')
+            self.update_local_ops_actor_target = update_graph('global/actor/target',self.name+'/actor/target')
+            self.update_local_ops_critic_target = update_graph('global/critic/target',self.name+'/critic/target')
+            self.update_global_actor_target = update_target_network('global/actor','global/actor/target',1e-3)
+            self.update_global_critic_target = update_target_network('global/critic','global/critic/target',1e-3)
 
     def start(self):
         self.env = ei(vis=self.vis)#RunEnv(visualize=True)
@@ -149,16 +148,15 @@ class Worker:
     def train(self):
         # print "train step",self.time_step
         # Sample a random minibatch of N transitions from replay buffer
-        minibatch = self.replay_buffer.get_batch(self.batch_size)
+        global replay_buffer
+        minibatch = replay_buffer.get_batch(self.batch_size)
         #print(ISWeights)
-	BATCH_SIZE = len(minibatch)
+	BATCH_SIZE = self.batch_size
 	#print(self.batch_size)
         state_batch = np.asarray([data[0] for data in minibatch])
         
         action_batch = np.asarray([data[1] for data in minibatch])
         reward_batch = np.asarray([data[2] for data in minibatch])
-	    # reward clipping:  scale and clip the values of the rewards to the range -1,+1
-	    # reward_batch = (reward_batch - np.mean(reward_batch)) / np.max(abs(reward_batch))
 
         next_state_batch = np.asarray([data[3] for data in minibatch])
         done_batch = np.asarray([data[4] for data in minibatch])
@@ -178,7 +176,7 @@ class Worker:
                 y_batch.append(reward_batch[i])
             else :
                 y_batch.append(reward_batch[i] + self.gamma * q_value_batch[i])'''
-        y_batch = reward_batch + self.gamma * q_value_batch * done_mask
+        y_batch = reward_batch + self.gamma**self.n_step * q_value_batch * done_mask
         y_batch = np.resize(y_batch,[BATCH_SIZE,1])
         # Update critic by minimizing the loss L
         _,loss,a,b,norm = self.critic_network.train(self.sess,y_batch,state_batch,action_batch)
@@ -190,7 +188,18 @@ class Worker:
         # Update the actor policy using the sampled gradient:
         action_batch_for_gradients = self.actor_network.actions(self.sess,state_batch)
         q_gradient_batch = self.critic_network.gradients(self.sess,state_batch,action_batch_for_gradients)
+        q_gradient_batch *= -1.
 
+        # invert gradient formula : dq = (a_max-a) / (a_max - a_min) if dq>0, else dq = (a - a_min) / (a_max - a_min)
+        for i in range(BATCH_SIZE): # In our case a_max = 1, a_min = 0
+            for j in range(18):
+                dq = q_gradient_batch[i,j]
+                a = action_batch_for_gradients[i,j]
+                if dq > 0.:
+                    q_gradient_batch[i,j] *= (1-a)
+                else:
+                    q_gradient_batch[i,j] *= a
+                    
         _,norm = self.actor_network.train(self.sess,q_gradient_batch,state_batch)
         print(norm)
         # Update the target networks
@@ -206,36 +215,27 @@ class Worker:
     def save_model(self, saver, episode):
         saver.save(self.sess, self.model_path + "/model-" + str(episode) + ".ckpt")
 
-    def noise_action(self,state):
-        # Select action a_t according to the current policy and exploration noise which gradually vanishes
-        action = self.actor_network.action(self.sess,state)
+    def noise_action(self,action):
         return action+self.exploration_noise.noise()*self.noise_decay
 
     def action(self,state):
         action = self.actor_network.action(self.sess,state)
         return action
 
-    def perceive(self,state,action,reward,next_state,done,action_avg,step,ea):
+    def perceive(self,transition):
         # Store transition (s_t,a_t,r_t,s_{t+1}) in replay buffer
-        self.replay_buffer.add(state, action, reward, next_state, done)
-        self.total_steps += 1
-
-        # if self.time_step % 10000 == 0:
-            #self.actor_network.save_network(self.time_step)
-            #self.critic_network.save_network(self.time_step)
-
-        # Re-iniitialize the random process when an episode ends
-        if done:
-            self.exploration_noise.reset(None) # reset as noise mu as (1- average_activation_each_muscle)
+        global replay_buffer
+        replay_buffer.add(transition)
 
     def work(self,coord,saver):
+        global replay_buffer
+        global pause_perceive
+        
         if self.training:
             episode_count = self.sess.run(self.global_episodes)
         else:
             episode_count = 0
         wining_episode_count = 0
-        
-	global pause_perceive
 
         print ("Starting worker_" + str(self.number))
         
@@ -248,54 +248,52 @@ class Worker:
         with self.sess.as_default(), self.sess.graph.as_default():
             #not_start_training_yet = True
             while not coord.should_stop():
-            
-                if episode_count % 200 == 0 and episode_count>1: # change Aug24 restart RunEnv every 50 eps
-                    self.restart()
                     
                 returns = []
+                episode_buffer = []
                 episode_reward = 0
-                self.noise_decay = np.cos(self.explore / 10 * 2* np.pi)
-                #print(self.noise_decay)
+                self.noise_decay = np.maximum(abs(np.cos(self.explore / 20 * np.pi)),0.67)
                 self.explore -= 1
                 
                 self.sess.run(self.update_local_ops_actor)
-                self.sess.run(self.update_local_ops_critic)
-                self.sess.run(self.update_local_ops_actor_target)
-                self.sess.run(self.update_local_ops_critic_target)
+                if self.name == 'worker_1':
+                    self.sess.run(self.update_local_ops_critic)
+                    self.sess.run(self.update_local_ops_actor_target)
+                    self.sess.run(self.update_local_ops_critic_target)
                         
                 state = self.env.reset()
-                #print(observation)
-                seed= 0.1#np.random.rand()
+                seed= 0.1
                 ea=engineered_action(seed)
-                
                 
                 s,s1,s2 = [],[],[]
                 ob = self.env.step(ea)[0]
                 s = ob
-                #print(s[1:3],s[26:28]) # plvis position appear twice? test says no. https://github.com/stanfordnmbl/osim-rl search "41 observation"
                 ob = self.env.step(ea)[0]
                 s1 = ob
-                #print(s1[1:3],s1[26:28])
                 s = process_state(s,s1)
                     
                 if self.name == 'worker_0':
                     print("episode:{}".format(str(episode_count)+' '+self.name))
                 # Train
-                done = False
-                chese = 100#int(np.random.rand()*50) # change Aug 25 >50 == turn off engineered action
-                action_avg = np.zeros(18)
+                action = ea
                 for step in xrange(1000):
-                    if chese < 70:
-                        action=engineered_action(seed)
-                        #action_avg += action
-                        action = np.clip(action+self.exploration_noise.noise()*0.0,0.0,1.0)
-                        chese += 1
-                    elif self.explore>0 and self.training:
-                        action = np.clip(self.noise_action(s),-1e-2,1.0-1e-2) # change Aug20
-                        #action_avg += action
-                    else:
-                        action = self.action(s)
-                        #action_avg += action
+                    if self.name == "worker_1" and replay_buffer.count() > 200 and self.training:
+			#pause_perceive=True
+			#print(self.name+'is training')
+                        self.train()
+                        self.train()
+			#pause_perceive=False
+			if replay_buffer.count() >= 200e3:
+                            pause_perceive = True
+                            replay_buffer.erase() # erase old experience every time the model is saved
+                            pause_perceive = False
+			continue
+
+                    if self.explore>0 and self.training:
+                        action = np.clip(self.noise_action(action),1e-3,1.-1e-3) # change Aug20
+                    if step % self.n_step == 0:
+                        action = np,clip(self.action(s),1e-3,1.-1e-3)
+
                     try:
                         s2,reward,done,_ = self.env.step(action)
                     except:
@@ -303,38 +301,37 @@ class Worker:
                         if self.env != None:
 			    del self.env
                         return 0
-                    #print('state={}, action={}, reward={}, next_state={}, done={}'.format(state, action, reward, next_state, done))
+                    
                     s1 = process_state(s1,s2)
-                    #if chese >=50: # change Aug24 do not include engineered action in the buffer
-                        #self.perceive(s,action,reward,s1,done)
-		    #sleep(0.001) # THREAD_DELAY
-                    if step % 2 == 0 and not pause_perceive:
-                        self.perceive(s,action,reward*20,s1,done,action_avg,step,ea)
+                    #print(s1)
+                    if s1[2] > 0.75:
+                        height_reward = 1.
+                    else:
+                        height_reward = -1.
+                    episode_buffer.append([s,action,(reward+s1[18]+s1[20])/self.n_step*(step/50)*height_reward,s1,done])
+                    if step > self.n_step and not pause_perceive:
+                        transition = n_step_transition(episode_buffer,self.n_step,self.gamma)
+                        self.perceive(transition)
                         
-                    if self.name == "worker_1" and self.total_steps > 1e2 and self.training:
-			pause_perceive=True
-			#print(self.name+'is training')
-                        self.train()
-                        self.train()
-			pause_perceive=False
-
                     s = s1
                     s1 = s2
                     episode_reward += reward
                     if done:
+                        self.exploration_noise.reset(None)
                     	break
 
                 if self.name == 'worker_0' and episode_count % 5 == 0:
                     with open('result.txt','a') as f:
                         f.write("Episode "+str(episode_count)+" reward (training): %.2f\n" % episode_reward)
 
-
                 # Testing:
                 if self.name == 'worker_2' and episode_count % 10 == 0 and episode_count > 1: # change Aug19
-                    if episode_count % 50 == 0 and not self.vis:
+                    if episode_count % 100 == 0 and not self.vis:
                         self.save_model(saver, episode_count)
+                        
                	    total_return = 0
-                    for i in xrange(3):
+               	    TEST = 1
+                    for i in xrange(TEST):
                         state = self.env.reset()
                	        a=engineered_action(seed)
                         ob = self.env.step(a)[0]
@@ -343,7 +340,8 @@ class Worker:
                         s1 = ob
                         s = process_state(s,s1)
                         for j in xrange(1000):
-                            action = self.action(s) # direct action for test
+                            if j % self.n_step == 0:
+                                action = self.action(s) # direct action for test
                             s2,reward,done,_ = self.env.step(action)
                             s1 = process_state(s1,s2)
                             s = s1
@@ -352,7 +350,7 @@ class Worker:
                             if done:
                                 break
 
-                    ave_return = total_return/3
+                    ave_return = total_return/TEST
                     returns.append(ave_return)
                     with open('result.txt','a') as f:
                         f.write('episode: {} Evaluation(testing) Average Return: {}\n'.format(episode_count,ave_return))

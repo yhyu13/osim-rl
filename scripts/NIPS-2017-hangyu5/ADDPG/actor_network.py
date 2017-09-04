@@ -6,7 +6,7 @@ from helper import *
 
 
 # Hyper Parameters
-LEARNING_RATE = 1e-4
+LEARNING_RATE = 1e-3
 TAU = 0.001
 
 class ActorNetwork:
@@ -15,37 +15,46 @@ class ActorNetwork:
 
         self.state_dim = state_dim
         self.action_dim = action_dim
+        
+        with tf.variable_scope(scope):
+            self.phase = tf.placeholder("bool")
+
         # create actor network
-        self.state_input,self.action_output,self.net = self.create_network(state_dim,action_dim,scope)
+        if scope == 'worker_1/actor':
+            self.state_input,self.action_output,self.net = self.create_network(state_dim,action_dim,self.phase,scope)
+        else: # for the rest workers & global, training phase == False
+            self.state_input,self.action_output,self.net = self.create_network(state_dim,action_dim,False,scope)           
 
         # create target actor network
-        self.target_state_input,self.target_action_output,self.target_update,self.target_net = self.create_target_network(state_dim,action_dim,self.net,scope)
+        if scope == 'worker_1/actor' or scope == 'global/actor':
+            self.target_state_input,self.target_action_output,self.target_update,self.target_net = self.create_target_network(state_dim,action_dim,True,self.net,scope)
         # define training rules
-        if scope != 'global/actor':
-	    self.q_gradient_input = tf.placeholder("float",[None,self.action_dim])
-	    self.parameters_gradients,self.global_norm = tf.clip_by_global_norm(tf.gradients(self.action_output,self.net,-self.q_gradient_input),5.0)
-	    global_vars_actor = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'global/actor')
-	    self.optimizer = tf.train.AdamOptimizer(LEARNING_RATE).apply_gradients(zip(self.parameters_gradients,global_vars_actor))
-	    sess.run(tf.global_variables_initializer())
+        if scope == 'worker_1/actor':
+	    update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS,scope)
+    	    with tf.control_dependencies(update_ops):
+	        self.q_gradient_input = tf.placeholder("float",[None,self.action_dim])
+	        self.parameters_gradients,self.global_norm = tf.clip_by_global_norm(tf.gradients(self.action_output,self.net,self.q_gradient_input),5.0)
+	        global_vars_actor = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'global/actor')
+	        self.optimizer = tf.train.AdamOptimizer(LEARNING_RATE).apply_gradients(zip(self.parameters_gradients,global_vars_actor))
+	sess.run(tf.global_variables_initializer())
 
         #self.update_target()
         #self.load_network()
 
 
-    def create_network(self,state_dim,action_dim,scope):
+    def create_network(self,state_dim,action_dim,phase,scope):
         with tf.variable_scope(scope):
 
            state_input = tf.placeholder("float",[None,state_dim])
-           layer1 = slim.fully_connected(state_input,256,activation_fn=None,weights_initializer=tf.contrib.layers.xavier_initializer())
-           layer2 = slim.fully_connected(tf.nn.dropout(layer1,0.8),128,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
-           layer3 = slim.fully_connected(tf.nn.dropout(layer2,0.8),128,activation_fn=tf.nn.elu,weights_initializer=tf.contrib.layers.xavier_initializer())
-           action_output = tf.clip_by_value(slim.fully_connected(layer3,action_dim,activation_fn=tf.nn.relu,weights_initializer=tf.random_uniform_initializer(-3e-3,3e-3)),-1e-2,1.0-1e-2)
+	   h1 = dense_elu_batch(state_input,600,phase)
+	   h2 = dense_elu_batch(h1,500,phase)
+	   action_output = dense(h2,action_dim,None,tf.random_uniform_initializer(-3e-3,3e-3))
            net = [v for v in tf.trainable_variables() if scope in v.name]
 
            return state_input,action_output,net
 
-    def create_target_network(self,state_dim,action_dim,net,scope):
-        state_input,action_output,target_net = self.create_network(state_dim,action_dim,scope+'/target')
+    def create_target_network(self,state_dim,action_dim,phase,net,scope):
+        state_input,action_output,target_net = self.create_network(state_dim,action_dim,phase,scope+'/target')
         # updating target netowrk
         target_update = []
         for i in range(len(target_net)):
@@ -59,23 +68,28 @@ class ActorNetwork:
     def train(self,sess,q_gradient_batch,state_batch):
         return sess.run([self.optimizer,self.global_norm],feed_dict={
             self.q_gradient_input:q_gradient_batch,
-            self.state_input:state_batch
+            self.state_input:state_batch,
+            self.target_state_input:state_batch,
+	    self.phase:True
             })
 
     def actions(self,sess,state_batch):
         return sess.run(self.action_output,feed_dict={
-            self.state_input:state_batch
+            self.state_input:state_batch,
+	    self.phase:True
             })
 
     def action(self,sess,state):
         return sess.run(self.action_output,feed_dict={
-            self.state_input:[state]
+            self.state_input:[state],
+	    self.phase:False
             })[0]
 
 
     def target_actions(self,sess,state_batch):
         return sess.run(self.target_action_output,feed_dict={
-            self.target_state_input:state_batch
+            self.target_state_input:state_batch,
+            self.phase:True
             })
 
     # f fan-in size

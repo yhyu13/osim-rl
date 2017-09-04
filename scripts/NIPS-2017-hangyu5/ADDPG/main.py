@@ -10,14 +10,14 @@ def main():
 
     parser = argparse.ArgumentParser(description='Train or test neural net motor controller')
     parser.add_argument('--load_model', dest='load_model', action='store_true', default=False)
-    parser.add_argument('--num_workers', dest='num_workers',action='store',default=2,type=int)
+    parser.add_argument('--num_workers', dest='num_workers',action='store',default=3,type=int)
     parser.add_argument('--visualize', dest='vis', action='store_true', default=False)
     args = parser.parse_args()
 
     load_model = args.load_model
     num_workers = args.num_workers
     vis = args.vis
-    training = not load_model
+    training = True#not load_model
     model_path = './models'
 
     if not os.path.exists(model_path):
@@ -26,8 +26,8 @@ def main():
     # hyperparameters
     explore = 2000
     batch_size = 64
-    gamma = 0.999
-    replay_buffer_capacity = 300
+    gamma = 0.995
+    n_step = 10
         
     tf.reset_default_graph()
         
@@ -39,9 +39,8 @@ def main():
 	        num_cpu = multiprocessing.cpu_count() # Set workers ot number of available CPU threads
 	        workers = []
 	        # Create worker classes
-	        replaybuffer = ReplayBuffer(int(num_workers*replay_buffer_capacity)) # workers share a single replay buffer
 	        for i in range(num_workers):
-	            worker = Worker(sess,i,model_path,global_episodes,explore,training,vis,replaybuffer,batch_size,gamma,int(replay_buffer_capacity))
+	            worker = Worker(sess,i,model_path,global_episodes,explore,training,vis,batch_size,gamma,n_step)
 		    workers.append(worker)
 	        saver = tf.train.Saver()
 
@@ -63,6 +62,7 @@ def main():
                 t.daemon = True
                 t.start()
                 worker_threads.append(t)
+                sleep(0.05)
             coord.join(worker_threads)
         
 if __name__ == "__main__":
