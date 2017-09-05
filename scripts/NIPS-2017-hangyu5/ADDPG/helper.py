@@ -37,8 +37,8 @@ def normalize(s):
 def process_state(s,s1):
     s = np.asarray(s)
     s1 = np.asarray(s1)
-    s_14 = (s1[22:36]-s[22:36]) / 0.005
-    s_3 = (s1[38:]-s[38:]) / 0.005 
+    s_14 = (s1[22:36]-s[22:36]) / 0.01
+    s_3 = (s1[38:]-s[38:]) / 0.01
     s = np.hstack((s1[:36],s_14,s1[36:],s_3))
     return s
     
@@ -112,6 +112,6 @@ def n_step_transition(episode_buffer,n_step,gamma):
     r = 0
     for i in range(n_step):
       r += episode_buffer[-1-n_step+i][2]*gamma**i
-    return [s,action,np.maximum(r,0.0),s1,done]
+    return [s,action,r,s1,done]
 
 

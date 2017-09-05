@@ -1,48 +1,7 @@
-Starting time: Mon, 04 Sep 2017 20:52:11
-Episode 0 reward (training): 0.74
-Episode 5 reward (training): 0.78
-Episode 10 reward (training): -0.79
-episode: 10 Evaluation(testing) Average Return: 0.248424162172
-Episode 15 reward (training): -0.05
-Episode 20 reward (training): 0.05
-episode: 20 Evaluation(testing) Average Return: 0.251917582888
-Episode 25 reward (training): -0.79
-Episode 30 reward (training): -0.49
-Episode 35 reward (training): 0.41
-episode: 30 Evaluation(testing) Average Return: 0.24851021949
-Episode 40 reward (training): -0.60
-Episode 45 reward (training): -0.79
-episode: 40 Evaluation(testing) Average Return: -0.793985124237
-Episode 50 reward (training): -0.80
-Episode 55 reward (training): -0.79
-episode: 50 Evaluation(testing) Average Return: -0.868850025002
-Episode 60 reward (training): -0.92
-Episode 65 reward (training): -0.79
-episode: 60 Evaluation(testing) Average Return: -0.868490003272
-Episode 70 reward (training): -0.76
-Episode 75 reward (training): -0.80
-episode: 70 Evaluation(testing) Average Return: -0.868853763067
-Episode 80 reward (training): -0.80
-Episode 85 reward (training): -0.83
-episode: 80 Evaluation(testing) Average Return: -0.868195059225
-Episode 90 reward (training): -0.80
-Episode 95 reward (training): -0.80
-episode: 90 Evaluation(testing) Average Return: -0.86868070102
-Episode 100 reward (training): -0.83
-Episode 105 reward (training): -0.82
-Episode 110 reward (training): -0.87
-episode: 100 Evaluation(testing) Average Return: -0.868532625902
-Episode 115 reward (training): -0.85
-Episode 120 reward (training): -0.82
-episode: 110 Evaluation(testing) Average Return: -0.86854119638
-Episode 125 reward (training): -0.84
-Episode 130 reward (training): -0.80
-episode: 120 Evaluation(testing) Average Return: -0.868395091794
-Episode 135 reward (training): -0.77
-Episode 140 reward (training): -0.90
-episode: 130 Evaluation(testing) Average Return: -0.868600592371
-Episode 145 reward (training): -0.83
-Episode 150 reward (training): -0.81
-episode: 140 Evaluation(testing) Average Return: -0.868626265817
-Episode 155 reward (training): -0.76
-Episode 160 reward (training): -0.81
+Starting time: Tue, 05 Sep 2017 00:58:21
+Episode 0 reward (training): -0.83
+Episode 5 reward (training): -0.81
+Episode 10 reward (training): -0.80
+episode: 10 Evaluation(testing) Average Return: -0.772650273123
+Episode 15 reward (training): -0.78
+Episode 20 reward (training): -0.80

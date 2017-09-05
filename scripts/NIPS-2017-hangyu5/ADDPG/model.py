@@ -196,7 +196,7 @@ class Worker:
                 dq = q_gradient_batch[i,j]
                 a = action_batch_for_gradients[i,j]
                 if dq > 0.:
-                    q_gradient_batch[i,j] *= (1-a)
+                    q_gradient_batch[i,j] *= (1.-a)
                 else:
                     q_gradient_batch[i,j] *= a
                     
@@ -215,8 +215,9 @@ class Worker:
     def save_model(self, saver, episode):
         saver.save(self.sess, self.model_path + "/model-" + str(episode) + ".ckpt")
 
-    def noise_action(self,action):
-        return action+self.exploration_noise.noise()*self.noise_decay
+    def noise_action(self,state):
+        action = self.actor_network.action(self.sess,state)
+        return np.clip(action,1e-3,1.-1e-3)+self.exploration_noise.noise()*self.noise_decay
 
     def action(self,state):
         action = self.actor_network.action(self.sess,state)
@@ -252,8 +253,10 @@ class Worker:
                 returns = []
                 episode_buffer = []
                 episode_reward = 0
-                self.noise_decay = np.maximum(abs(np.cos(self.explore / 20 * np.pi)),0.67)
+                self.noise_decay -= 1./self.explore#np.maximum(abs(np.cos(self.explore / 20 * np.pi)),0.67)
                 self.explore -= 1
+                start_training = replay_buffer.count() > 400 # start_training
+                erase_buffer = replay_buffer.count() >= 500e3 # erase buffer
                 
                 self.sess.run(self.update_local_ops_actor)
                 if self.name == 'worker_1':
@@ -277,13 +280,13 @@ class Worker:
                 # Train
                 action = ea
                 for step in xrange(1000):
-                    if self.name == "worker_1" and replay_buffer.count() > 200e3 and self.training:
+                    if self.name == "worker_1" and start_training and self.training:
 			#pause_perceive=True
 			#print(self.name+'is training')
-                        self.train()
+                        #self.train()
                         self.train()
 			#pause_perceive=False
-			if replay_buffer.count() >= 500e3:
+			if erase_buffer:
                             pause_perceive = True
                             replay_buffer.erase() # erase old experience every time the model is saved
                             pause_perceive = False
@@ -291,8 +294,8 @@ class Worker:
 			continue
 
                     if self.explore>0 and self.training:
-                        action = np.clip(self.noise_action(action),1e-3,1.-1e-3) # change Aug20
-                    if step % self.n_step == 0:
+                        action = np.clip(self.noise_action(s),1e-3,1.-1e-3) # change Aug20
+                    else:
                         action = np.clip(self.action(s),1e-3,1.-1e-3)
 
                     try:
@@ -305,11 +308,13 @@ class Worker:
                     
                     s1 = process_state(s1,s2)
                     #print(s1)
-                    if s1[2] > 0.75:
+                    if s1[2] > 0.80:
                         height_reward = 1.
                     else:
-                        height_reward = 0.1.
-                    episode_buffer.append([s,action,(s1[18]*2+s1[20])/self.n_step*(step/10)*height_reward,s1,done])
+                        height_reward = -0.5
+                        
+                    print(s1[18]*10,s1[20],5*abs(s1[32]-s1[34]))
+                    episode_buffer.append([s,action,(s1[18]*10+s1[20]+2*abs(s1[32]-s1[34]))/self.n_step*(step/50)*height_reward,s1,done])
                     if step > self.n_step and not pause_perceive:
                         transition = n_step_transition(episode_buffer,self.n_step,self.gamma)
                         self.perceive(transition)
@@ -341,8 +346,7 @@ class Worker:
                         s1 = ob
                         s = process_state(s,s1)
                         for j in xrange(1000):
-                            if j % self.n_step == 0:
-                                action = self.action(s) # direct action for test
+                            action = self.action(s) # direct action for test
                             s2,reward,done,_ = self.env.step(action)
                             s1 = process_state(s1,s2)
                             s = s1

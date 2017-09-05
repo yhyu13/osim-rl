@@ -10,7 +10,7 @@ import numpy.random as nr
 
 class OUNoise:
     """docstring for OUNoise"""
-    def __init__(self,action_dimension,mu=-.5, theta=0.05, sigma=0.2):
+    def __init__(self,action_dimension,mu=0.0, theta=0.05, sigma=0.2):
         self.action_dimension = action_dimension
         self.mu = mu
         self.theta = theta
@@ -18,10 +18,11 @@ class OUNoise:
         self.state = np.ones(self.action_dimension) * self.mu
         self.reset(None)
 
-    def reset(self,mus):
-        if isinstance(mus,(list,np.ndarray)):
-            self.mu = np.asarray(mus)
-            self.state = np.asarray(mus)
+    def reset(self,settings):
+        if isinstance(settings,(list,np.ndarray)):
+            self.mu = settings[0]
+            self.theta = settings[1]
+            self.state = np.ones(self.action_dimension) * self.mu
         else:
             self.state = np.ones(self.action_dimension) * self.mu
 
