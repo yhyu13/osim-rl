@@ -51,7 +51,7 @@ def process_state(s,s1):
     
     x_vs = [i+14 for i in x_pos]
     x_vs[0] = 4
-    v_vs = [i+1 for i in x_vs]
+    y_vs = [i+1 for i in x_vs]
     for i in x_vs:
         s[i] -= s[20]
     for j in y_vs:

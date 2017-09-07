@@ -6,7 +6,7 @@ from helper import *
 
 
 LEARNING_RATE = 1e-4
-TAU = 1e-3
+TAU = 1e-4
 L2 = 0.01
 
 class CriticNetwork:
@@ -51,7 +51,7 @@ class CriticNetwork:
 
 	    h1 = dense_elu_batch(state_input,80,phase)
 	    h1_a = dense_elu_batch(action_input,80,phase)
-	    h2 = dense(tf.add(h1,h1_a),80,tf.nn.elu,tf.contrib.layers.xavier_initializer())
+	    h2 = dense(tf.concat([h1,h1_a],1),80,tf.nn.elu,tf.contrib.layers.xavier_initializer())
 	    q_value_output = dense(h2,1,None,tf.random_uniform_initializer(-3e-3,3e-3))
             net = [v for v in tf.trainable_variables() if scope in v.name]
 

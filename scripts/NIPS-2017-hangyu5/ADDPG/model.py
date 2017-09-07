@@ -96,7 +96,7 @@ class ei: # Environment Instance
 # DDPG Worker
 ###############################################
 pause_perceive = False
-replay_buffer = ReplayBuffer(500e3)
+replay_buffer = ReplayBuffer(1e6)
 
 class Worker:
     """docstring for DDPG"""
@@ -133,8 +133,8 @@ class Worker:
             self.update_local_ops_critic = update_graph('global/critic',self.name+'/critic')
             self.update_local_ops_actor_target = update_graph('global/actor/target',self.name+'/actor/target')
             self.update_local_ops_critic_target = update_graph('global/critic/target',self.name+'/critic/target')
-            self.update_global_actor_target = update_target_network('global/actor','global/actor/target',1e-3)
-            self.update_global_critic_target = update_target_network('global/critic','global/critic/target',1e-3)
+            self.update_global_actor_target = update_target_network('global/actor','global/actor/target',1e-4)
+            self.update_global_critic_target = update_target_network('global/critic','global/critic/target',1e-4)
 
     def start(self):
         self.env = ei(vis=self.vis)#RunEnv(visualize=True)
@@ -180,10 +180,10 @@ class Worker:
         y_batch = np.resize(y_batch,[BATCH_SIZE,1])
         # Update critic by minimizing the loss L
         _,loss,a,b,norm = self.critic_network.train(self.sess,y_batch,state_batch,action_batch)
-        print(a)
-        print(b)
-        print(loss)
-        print(norm)
+        #print(a)
+        #print(b)
+        #print(loss)
+        #print(norm)
 
         # Update the actor policy using the sampled gradient:
         action_batch_for_gradients = self.actor_network.actions(self.sess,state_batch)
@@ -201,7 +201,7 @@ class Worker:
                     q_gradient_batch[i,j] *= a
                     
         _,norm = self.actor_network.train(self.sess,q_gradient_batch,state_batch)
-        print(norm)
+        #print(norm)
         # Update the target networks
         #self.actor_network.update_target(self.sess)
         #self.critic_network.update_target(self.sess)
@@ -255,7 +255,7 @@ class Worker:
                 episode_reward = 0
                 self.noise_decay -= 1./self.explore#np.maximum(abs(np.cos(self.explore / 20 * np.pi)),0.67)
                 self.explore -= 1
-                start_training = replay_buffer.count() > 400 # start_training
+                start_training = replay_buffer.count() >= 9e5 # start_training
                 erase_buffer = False # erase buffer
                 
                 self.sess.run(self.update_local_ops_actor)
@@ -283,7 +283,7 @@ class Worker:
                     if self.name == "worker_1" and start_training and self.training:
 			#pause_perceive=True
 			#print(self.name+'is training')
-                        #self.train()
+                        self.train()
                         self.train()
 			#pause_perceive=False
 			if erase_buffer:
@@ -291,7 +291,6 @@ class Worker:
                             replay_buffer.erase() # erase old experience every time the model is saved
                             pause_perceive = False
 			    break
-			continue
 
                     if self.explore>0 and self.training:
                         action = np.clip(self.noise_action(s),1e-3,1.-1e-3) # change Aug20
@@ -308,13 +307,16 @@ class Worker:
                     
                     s1 = process_state(s1,s2)
                     #print(s1)
-                    if s1[2] > 0.80:
+                    if s1[2] > 0.75:
                         height_reward = 1.
                     else:
-                        height_reward = -0.5
-                        
-                    print(s1[18]*10,s1[20],5*abs(s1[32]-s1[34]))
-                    episode_buffer.append([s,action,(s1[18]*10+s1[20]+2*abs(s1[32]-s1[34]))/self.n_step*(step/50)*height_reward,s1,done])
+                        height_reward = 0.5
+                    if not done:
+                        ep_reward = 1.005
+                    else:
+                        ep_reward = 0.0
+                    #print(s1[18]*10,s1[20],5*abs(s1[32]-s1[34]))
+                    episode_buffer.append([s,action,reward/0.05*height_reward*ep_reward,s1,done])
                     if step > self.n_step and not pause_perceive:
                         transition = n_step_transition(episode_buffer,self.n_step,self.gamma)
                         self.perceive(transition)
