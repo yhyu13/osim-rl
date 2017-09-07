@@ -19,7 +19,7 @@ test[15] = 0.5
 test[17] = 0.5
 class OUNoise:
     """docstring for OUNoise"""
-    def __init__(self,action_dimension,mu=0.0, theta=0.05, sigma=0.1):
+    def __init__(self,action_dimension,mu=0.0, theta=0.1, sigma=0.2):
         self.action_dimension = action_dimension
         self.mu = test
         self.theta = theta

@@ -255,7 +255,7 @@ class Worker:
                 episode_reward = 0
                 self.noise_decay -= 1./self.explore#np.maximum(abs(np.cos(self.explore / 20 * np.pi)),0.67)
                 self.explore -= 1
-                start_training = replay_buffer.count() >= 100e3 # start_training
+                start_training = replay_buffer.count() >= 500e3 # start_training
                 erase_buffer = False # erase buffer
                 
                 self.sess.run(self.update_local_ops_actor)
@@ -316,7 +316,7 @@ class Worker:
                     else:
                         ep_reward = 0.0
                     #print(s1[18]*10,s1[20],5*abs(s1[32]-s1[34]))
-                    episode_buffer.append([s,action,reward/0.1*height_reward*ep_reward,s1,done])
+                    episode_buffer.append([s,action,reward*height_reward*ep_reward,s1,done])
                     if step > self.n_step and not pause_perceive:
                         transition = n_step_transition(episode_buffer,self.n_step,self.gamma)
                         self.perceive(transition)
