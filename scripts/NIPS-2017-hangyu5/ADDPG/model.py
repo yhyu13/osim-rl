@@ -180,10 +180,10 @@ class Worker:
         y_batch = np.resize(y_batch,[BATCH_SIZE,1])
         # Update critic by minimizing the loss L
         _,loss,a,b,norm = self.critic_network.train(self.sess,y_batch,state_batch,action_batch)
-        #print(a)
-        #print(b)
-        #print(loss)
-        #print(norm)
+        print(a)
+        print(b)
+        print(loss)
+        print(norm)
 
         # Update the actor policy using the sampled gradient:
         action_batch_for_gradients = self.actor_network.actions(self.sess,state_batch)
@@ -201,7 +201,7 @@ class Worker:
                     q_gradient_batch[i,j] *= a
                     
         _,norm = self.actor_network.train(self.sess,q_gradient_batch,state_batch)
-        #print(norm)
+        print(norm)
         # Update the target networks
         #self.actor_network.update_target(self.sess)
         #self.critic_network.update_target(self.sess)
@@ -256,7 +256,7 @@ class Worker:
                 self.noise_decay -= 1./self.explore#np.maximum(abs(np.cos(self.explore / 20 * np.pi)),0.67)
                 self.explore -= 1
                 start_training = replay_buffer.count() > 400 # start_training
-                erase_buffer = replay_buffer.count() >= 500e3 # erase buffer
+                erase_buffer = False # erase buffer
                 
                 self.sess.run(self.update_local_ops_actor)
                 if self.name == 'worker_1':

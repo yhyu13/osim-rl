@@ -27,7 +27,7 @@ def main():
     explore = 2000
     batch_size = 64
     gamma = 0.995
-    n_step = 30
+    n_step = 3
         
     tf.reset_default_graph()
         

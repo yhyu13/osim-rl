@@ -40,6 +40,23 @@ def process_state(s,s1):
     s_14 = (s1[22:36]-s[22:36]) / 0.01
     s_3 = (s1[38:]-s[38:]) / 0.01
     s = np.hstack((s1[:36],s_14,s1[36:],s_3))
+    
+    # transform into all relative quantities
+    x_pos = [1,22,24,26,28,30,32,34]
+    y_pos = [i+1 for i in x_pos]
+    for i in x_pos:
+        s[i] -= s[18]
+    for j in y_pos:
+        s[j] -= s[19]
+    
+    x_vs = [i+14 for i in x_pos]
+    x_vs[0] = 4
+    v_vs = [i+1 for i in x_vs]
+    for i in x_vs:
+        s[i] -= s[20]
+    for j in y_vs:
+        s[j] -= s[21]
+        
     return s
     
 def engineered_action(seed):

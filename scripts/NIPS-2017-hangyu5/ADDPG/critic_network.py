@@ -5,8 +5,8 @@ import math
 from helper import *
 
 
-LEARNING_RATE = 1.1e-4
-TAU = 0.001
+LEARNING_RATE = 1e-4
+TAU = 1e-3
 L2 = 0.01
 
 class CriticNetwork:
@@ -49,9 +49,9 @@ class CriticNetwork:
             state_input = tf.placeholder("float",[None,state_dim])
             action_input = tf.placeholder("float",[None,action_dim])
 
-	    h1 = dense_elu_batch(state_input,600,phase)
-	    h1_a = dense_elu_batch(action_input,600,phase)
-	    h2 = dense_elu_batch(tf.add(h1,h1_a),500,phase)
+	    h1 = dense_elu_batch(state_input,80,phase)
+	    h1_a = dense_elu_batch(action_input,80,phase)
+	    h2 = dense(tf.add(h1,h1_a),80,tf.nn.elu,tf.contrib.layers.xavier_initializer())
 	    q_value_output = dense(h2,1,None,tf.random_uniform_initializer(-3e-3,3e-3))
             net = [v for v in tf.trainable_variables() if scope in v.name]
 
