@@ -16,17 +16,6 @@ import opensim as osim
 from osim.http.client import Client
 from osim.env import *
 
-import sys
-import os
-class HiddenPrints:
-    def __enter__(self):
-        self._original_stdout = sys.stdout
-        sys.stdout = open(os.devnull, 'w')
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        sys.stdout = self._original_stdout
-
-
 import multiprocessing
 from multiprocessing import Process, Pipe
 
@@ -44,7 +33,7 @@ def standalone_headless_isolated(conn,vis):
             # msg[0] should be string
 
             if msg[0] == 'reset':
-                o = e.reset(difficulty=1)
+                o = e.reset(difficulty=2)
                 conn.send(o)
             elif msg[0] == 'step':
                 ordi = e.step(msg[1])
@@ -100,7 +89,7 @@ replay_buffer = ReplayBuffer(1e6)
 
 class Worker:
     """docstring for DDPG"""
-    def __init__(self,sess,number,model_path,global_episodes,explore,training,vis,batch_size,gamma,n_step):
+    def __init__(self,sess,number,model_path,global_episodes,explore,training,vis,batch_size,gamma,n_step,global_actor_net):
         self.name = 'worker_' + str(number) # name for uploading results
         self.number = number
         # Randomly initialize actor network and critic network
@@ -119,22 +108,16 @@ class Worker:
         self.batch_size = batch_size
         self.gamma = gamma
         self.n_step = n_step
-
-        self.actor_network = ActorNetwork(self.sess,self.state_dim,self.action_dim,self.name+'/actor')
-        self.update_local_ops_actor = update_graph('global/actor',self.name+'/actor')
-        
         # Initialize a random process the Ornstein-Uhlenbeck process for action exploration
         self.exploration_noise = OUNoise(self.action_dim)
-
+        
+        self.actor_network = ActorNetwork(self.sess,self.state_dim,self.action_dim,self.name+'/actor')
+        self.update_local_actor = update_graph(global_actor_net,self.actor_network.net)
         if self.name == 'worker_1':
             self.critic_network = CriticNetwork(self.sess,self.state_dim,self.action_dim,self.name+'/critic')
             self.actor_network.update_target(sess)
             self.critic_network.update_target(sess)
-            self.update_local_ops_critic = update_graph('global/critic',self.name+'/critic')
-            self.update_local_ops_actor_target = update_graph('global/actor/target',self.name+'/actor/target')
-            self.update_local_ops_critic_target = update_graph('global/critic/target',self.name+'/critic/target')
-            self.update_global_actor_target = update_target_network('global/actor','global/actor/target',1e-4)
-            self.update_global_critic_target = update_target_network('global/critic','global/critic/target',1e-4)
+            self.update_global_actor = update_graph(self.actor_network.net,global_actor_net)
 
     def start(self):
         self.env = ei(vis=self.vis)#RunEnv(visualize=True)
@@ -150,7 +133,7 @@ class Worker:
         # Sample a random minibatch of N transitions from replay buffer
         global replay_buffer
         minibatch = replay_buffer.get_batch(self.batch_size)
-        #print(ISWeights)
+
 	BATCH_SIZE = self.batch_size
 	#print(self.batch_size)
         state_batch = np.asarray([data[0] for data in minibatch])
@@ -165,59 +148,48 @@ class Worker:
         action_batch = np.resize(action_batch,[BATCH_SIZE,self.action_dim])
 
         # Calculate y_batch
-
         next_action_batch = self.actor_network.target_actions(self.sess,next_state_batch)
         q_value_batch = self.critic_network.target_q(self.sess,next_state_batch,next_action_batch)
-        #y_batch = []
-        done_mask = [0 if done else 1 for done in done_batch]
-        '''
-        for i in range(len(minibatch)):
-            if done_batch[i]:
-                y_batch.append(reward_batch[i])
-            else :
-                y_batch.append(reward_batch[i] + self.gamma * q_value_batch[i])'''
+
+        done_mask = np.asarray([0. if done else 1. for done in done_batch])
         y_batch = reward_batch + self.gamma**self.n_step * q_value_batch * done_mask
         y_batch = np.resize(y_batch,[BATCH_SIZE,1])
         # Update critic by minimizing the loss L
         _,loss,a,b,norm = self.critic_network.train(self.sess,y_batch,state_batch,action_batch)
-        #print(a)
-        #print(b)
-        #print(loss)
-        #print(norm)
+        print(a)
+        print(b)
+        print(loss)
+        print(norm)
 
         # Update the actor policy using the sampled gradient:
         action_batch_for_gradients = self.actor_network.actions(self.sess,state_batch)
         q_gradient_batch = self.critic_network.gradients(self.sess,state_batch,action_batch_for_gradients)
         q_gradient_batch *= -1.
-
+        '''
         # invert gradient formula : dq = (a_max-a) / (a_max - a_min) if dq>0, else dq = (a - a_min) / (a_max - a_min)
         for i in range(BATCH_SIZE): # In our case a_max = 1, a_min = 0
             for j in range(18):
                 dq = q_gradient_batch[i,j]
                 a = action_batch_for_gradients[i,j]
                 if dq > 0.:
-                    q_gradient_batch[i,j] *= (1.-a)
+                    q_gradient_batch[i,j] *= (0.95-a)
                 else:
-                    q_gradient_batch[i,j] *= a
+                    q_gradient_batch[i,j] *= a-0.05'''
                     
         _,norm = self.actor_network.train(self.sess,q_gradient_batch,state_batch)
-        #print(norm)
-        # Update the target networks
-        #self.actor_network.update_target(self.sess)
-        #self.critic_network.update_target(self.sess)
-        self.sess.run(self.update_global_actor_target)
-        self.sess.run(self.update_global_critic_target)
-        self.sess.run(self.update_local_ops_actor)
-        self.sess.run(self.update_local_ops_critic)
-        self.sess.run(self.update_local_ops_actor_target)
-        self.sess.run(self.update_local_ops_critic_target)
+        print(norm)
+        # Update the networks
+        self.actor_network.update_target(self.sess)
+        self.critic_network.update_target(self.sess)
+        self.sess.run(self.update_global_actor)
+
 
     def save_model(self, saver, episode):
         saver.save(self.sess, self.model_path + "/model-" + str(episode) + ".ckpt")
 
     def noise_action(self,state):
         action = self.actor_network.action(self.sess,state)
-        return np.clip(action,1e-3,1.-1e-3)+self.exploration_noise.noise()*self.noise_decay
+        return np.clip(action,0.05,0.95)+self.exploration_noise.noise()*self.noise_decay
 
     def action(self,state):
         action = self.actor_network.action(self.sess,state)
@@ -255,15 +227,12 @@ class Worker:
                 episode_reward = 0
                 self.noise_decay -= 1./self.explore#np.maximum(abs(np.cos(self.explore / 20 * np.pi)),0.67)
                 self.explore -= 1
-                start_training = episode_count > 50 #replay_buffer.count() >= 500e3 # start_training
+                start_training = episode_count > 2 #replay_buffer.count() >= 500e3 # start_training
                 erase_buffer = False # erase buffer
+
+                if self.name != "worker_1":
+                    self.sess.run(self.update_local_actor)
                 
-                self.sess.run(self.update_local_ops_actor)
-                if self.name == 'worker_1':
-                    self.sess.run(self.update_local_ops_critic)
-                    self.sess.run(self.update_local_ops_actor_target)
-                    self.sess.run(self.update_local_ops_critic_target)
-                        
                 state = self.env.reset()
                 seed= 0.1
                 ea=engineered_action(seed)
@@ -279,6 +248,7 @@ class Worker:
                     print("episode:{}".format(str(episode_count)+' '+self.name))
                 # Train
                 action = ea
+                demo = int(50*self.noise_decay)
                 for step in xrange(1000):
                     if self.name == "worker_1" and start_training and self.training:
 			#pause_perceive=True
@@ -291,11 +261,13 @@ class Worker:
                             replay_buffer.erase() # erase old experience every time the model is saved
                             pause_perceive = False
 			    break
-
-                    if self.explore>0 and self.training:
-                        action = np.clip(self.noise_action(s),1e-3,1.-1e-3) # change Aug20
+                    if demo > 0:
+                        action = ea
+                        demo -=1
+                    elif self.explore>0 and self.training:
+                        action = np.clip(self.noise_action(s),0.05,0.95) # change Aug20
                     else:
-                        action = np.clip(self.action(s),1e-3,1.-1e-3)
+                        action = np.clip(self.action(s),0.05,0.95)
 
                     try:
                         s2,reward,done,_ = self.env.step(action)
@@ -308,15 +280,21 @@ class Worker:
                     s1 = process_state(s1,s2)
                     #print(s1)
                     if s1[2] > 0.75:
-                        height_reward = 1.
+                        height_reward = 0.
                     else:
-                        height_reward = 0.5
+                        height_reward = -0.05
                     if not done:
                         ep_reward = 1.005
                     else:
                         ep_reward = 0.0
-                    #print(s1[18]*10,s1[20],5*abs(s1[32]-s1[34]))
-                    episode_buffer.append([s,action,reward*height_reward*ep_reward,s1,done])
+                    d_head_pelvis = abs(s1[22]-s[1])
+                    #print(d_head_pelvis)
+                    if d_head_pelvis > 0.25:
+                        sta_reward = -0.05
+                    else:
+                        sta_reward = 0.
+                    #print((s1[4]+height_reward+sta_reward)*ep_reward)                        
+                    episode_buffer.append([s,action,(s1[4]+height_reward+sta_reward)*ep_reward,s1,done])
                     if step > self.n_step and not pause_perceive:
                         transition = n_step_transition(episode_buffer,self.n_step,self.gamma)
                         self.perceive(transition)

@@ -26,7 +26,7 @@ class ActorNetwork:
             self.state_input,self.action_output,self.net = self.create_network(state_dim,action_dim,False,scope)           
 
         # create target actor network
-        if scope == 'worker_1/actor' or scope == 'global/actor':
+        if scope == 'worker_1/actor':
             self.target_state_input,self.target_action_output,self.target_update,self.target_net = self.create_target_network(state_dim,action_dim,True,self.net,scope)
         # define training rules
         if scope == 'worker_1/actor':
@@ -34,8 +34,7 @@ class ActorNetwork:
     	    with tf.control_dependencies(update_ops):
 	        self.q_gradient_input = tf.placeholder("float",[None,self.action_dim])
 	        self.parameters_gradients,self.global_norm = tf.clip_by_global_norm(tf.gradients(self.action_output,self.net,self.q_gradient_input),1.0)
-	        global_vars_actor = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, 'global/actor')
-	        self.optimizer = tf.train.AdamOptimizer(LEARNING_RATE).apply_gradients(zip(self.parameters_gradients,global_vars_actor))
+		self.optimizer = tf.train.AdamOptimizer(LEARNING_RATE).apply_gradients(zip(self.parameters_gradients,self.net))
 	sess.run(tf.global_variables_initializer())
 
         #self.update_target()
@@ -46,9 +45,9 @@ class ActorNetwork:
         with tf.variable_scope(scope):
 
            state_input = tf.placeholder("float",[None,state_dim])
-	   h1 = dense_elu_batch(state_input,100,phase)
-	   h2 = dense_elu_batch(h1,100,phase)
-	   action_output = dense(h2,action_dim,None,tf.random_uniform_initializer(-3e-3,3e-3))
+	   h1 = dense_relu_batch(state_input,400,phase)
+	   h2 = dense_relu_batch(h1,300,phase)
+	   action_output = dense(h2,action_dim,tf.tanh,tf.random_uniform_initializer(-3e-3,3e-3))
            net = [v for v in tf.trainable_variables() if scope in v.name]
 
            return state_input,action_output,net
@@ -57,9 +56,14 @@ class ActorNetwork:
         state_input,action_output,target_net = self.create_network(state_dim,action_dim,phase,scope+'/target')
         # updating target netowrk
         target_update = []
+        ema = tf.train.ExponentialMovingAverage(decay=1-TAU)
+        target_update = ema.apply(net)
+        target_net = [ema.average(x) for x in net]
+        '''
         for i in range(len(target_net)):
             # theta' <-- tau*theta + (1-tau)*theta'
             target_update.append(target_net[i].assign(tf.add(tf.multiply(TAU,net[i]),tf.multiply((1-TAU),target_net[i]))))
+            '''
         return state_input,action_output,target_update,target_net
 
     def update_target(self,sess):
