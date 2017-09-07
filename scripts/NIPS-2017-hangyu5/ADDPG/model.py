@@ -96,7 +96,7 @@ class ei: # Environment Instance
 # DDPG Worker
 ###############################################
 pause_perceive = False
-replay_buffer = ReplayBuffer(200e3)
+replay_buffer = ReplayBuffer(1e6)
 
 class Worker:
     """docstring for DDPG"""
@@ -255,7 +255,7 @@ class Worker:
                 episode_reward = 0
                 self.noise_decay -= 1./self.explore#np.maximum(abs(np.cos(self.explore / 20 * np.pi)),0.67)
                 self.explore -= 1
-                start_training = replay_buffer.count() >= 500e3 # start_training
+                start_training = episode_count > 50 #replay_buffer.count() >= 500e3 # start_training
                 erase_buffer = False # erase buffer
                 
                 self.sess.run(self.update_local_ops_actor)
@@ -283,7 +283,7 @@ class Worker:
                     if self.name == "worker_1" and start_training and self.training:
 			#pause_perceive=True
 			#print(self.name+'is training')
-                        self.train()
+                        #self.train()
                         self.train()
 			#pause_perceive=False
 			if erase_buffer:
@@ -334,7 +334,7 @@ class Worker:
 
                 # Testing:
                 if self.name == 'worker_2' and episode_count % 10 == 0 and episode_count > 1: # change Aug19
-                    if episode_count % 100 == 0 and not self.vis:
+                    if episode_count % 25 == 0 and not self.vis:
                         self.save_model(saver, episode_count)
                         
                	    total_return = 0
@@ -365,7 +365,12 @@ class Worker:
                 if self.name == 'worker_0' and self.training:
                     self.sess.run(self.increment)
                 episode_count += 1
-
+		if episode_count == 100:
+		    del self.env
+		    # All done Stop trail
+            	    # Confirm exit
+            	    print('Done '+self.name)
+            	    return
             # All done Stop trail
             # Confirm exit
             print('Done '+self.name)

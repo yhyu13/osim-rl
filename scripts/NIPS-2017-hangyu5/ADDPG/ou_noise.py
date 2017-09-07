@@ -9,17 +9,18 @@ import numpy as np
 import numpy.random as nr
 
 test = np.zeros(18)
-test[0] = 0.5
-test[3] = 0.5
-test[6] = 0.5
-test[8] = 0.5
+test[0] = 0.3
+test[3] = 0.7
+test[4] = 0.3
+test[6] = 0.3
+test[8] = 0.7
+test[9] = 0.3
 test[11] = 0.5
-test[12] = 0.5
-test[15] = 0.5
+test[14] = 0.3
 test[17] = 0.5
 class OUNoise:
     """docstring for OUNoise"""
-    def __init__(self,action_dimension,mu=0.0, theta=0.1, sigma=0.2):
+    def __init__(self,action_dimension,mu=0.0, theta=0.05, sigma=0.05):
         self.action_dimension = action_dimension
         self.mu = test
         self.theta = theta
@@ -35,7 +36,6 @@ class OUNoise:
         else:
             #self.state = np.ones(self.action_dimension) * self.mu
             self.state = test
-            self.mu = test
 
     def noise(self):
         x = self.state
