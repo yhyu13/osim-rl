@@ -46,8 +46,8 @@ class ActorNetwork:
         with tf.variable_scope(scope):
 
            state_input = tf.placeholder("float",[None,state_dim])
-	   h1 = dense_elu_batch(state_input,80,phase)
-	   h2 = dense_elu_batch(h1,80,phase)
+	   h1 = dense_elu_batch(state_input,100,phase)
+	   h2 = dense_elu_batch(h1,100,phase)
 	   action_output = dense(h2,action_dim,None,tf.random_uniform_initializer(-3e-3,3e-3))
            net = [v for v in tf.trainable_variables() if scope in v.name]
 

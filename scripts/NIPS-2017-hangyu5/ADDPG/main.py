@@ -25,9 +25,9 @@ def main():
 	
     # hyperparameters
     explore = 2000
-    batch_size = 64
+    batch_size = 32
     gamma = 0.995
-    n_step = 15
+    n_step = 20
         
     tf.reset_default_graph()
         
